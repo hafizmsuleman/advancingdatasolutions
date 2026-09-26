@@ -77,14 +77,24 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Advancing Data Solutions Booking Portal" },
+      {
+        name: "description",
+        content:
+          "Talk to an engineer about your AI, data, or web project. Book a call with Advancing Data Solutions.",
+      },
+      { name: "author", content: "Advancing Data Solutions" },
+      {
+        property: "og:title",
+        content: "Advancing Data Solutions Booking Portal",
+      },
+      {
+        property: "og:description",
+        content:
+          "Talk to an engineer about your AI, data, or web project. Book a call with Advancing Data Solutions.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
