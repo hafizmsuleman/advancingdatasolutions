@@ -2,6 +2,7 @@
 // `messages`; real sending picks up rows whose scheduled_utc has passed.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { syncBookingCalendar } from "./calendar.server";
 
 type DB = SupabaseClient<Database>;
 type MsgType = Database["public"]["Enums"]["message_type"];
@@ -37,8 +38,11 @@ export async function cancelPendingReminders(d: DB, bookingId: string) {
 export async function scheduleReminders(d: DB, b: BookingForMail, origin: string, opts: { nda: boolean }) {
   const start = Date.parse(b.start_utc);
   const now = Date.now();
-  const { data: s } = await d.from("settings").select("fallback_meeting_link").eq("id", 1).single();
-  const link = s?.fallback_meeting_link ?? "";
+  const [{ data: s }, { data: bk }] = await Promise.all([
+    d.from("settings").select("fallback_meeting_link").eq("id", 1).single(),
+    d.from("bookings").select("meet_link").eq("id", b.id).single(),
+  ]);
+  const link = bk?.meet_link || s?.fallback_meeting_link || "";
   const hi = `Hi ${first(b.full_name)},\n\n`;
   const rows: Database["public"]["Tables"]["messages"]["Insert"][] = [];
   const ndaAt = Date.parse(b.created_at) + 2 * H;
@@ -74,7 +78,7 @@ export async function runAutomations(origin: string) {
     .eq("id", 1).or(`automation_lock_until.is.null,automation_lock_until.lt.${nowIso}`).select("*").maybeSingle();
   if (!lease) return { skipped: true as const, summary: "Another run is in progress." };
 
-  const c = { expired: 0, deleted: 0, cancelledReminders: 0, flagged: 0, released: 0, completed: 0, nudges: 0, cold: 0 };
+  const c = { calendarRetried: 0, calendarFixed: 0, expired: 0, deleted: 0, cancelledReminders: 0, flagged: 0, released: 0, completed: 0, nudges: 0, cold: 0 };
   try {
     const now = Date.now();
     const demoNow = now + lease.virtual_clock_offset_min * 60_000;
@@ -138,6 +142,7 @@ export async function runAutomations(origin: string) {
           .eq("id", b.id).eq("status", "confirmed").select("id");
         if (!rel?.length) continue;
         await cancelPendingReminders(d, b.id);
+        await syncBookingCalendar(d, b.id);
         await queue(d, {
           type: "release_notice", booking_id: b.id, lead_id: b.lead_id, to_email: b.email,
           subject: "We've released your consultation time",
@@ -157,7 +162,22 @@ export async function runAutomations(origin: string) {
       }
     }
 
-    // 5. Nudges for verified or admin-pasted leads with no booking; cold at 72h.
+    // 5. Calendar: retry failed syncs every 10 min; delete events left on inactive bookings
+    //    (e.g. cancelled from Admin → Bookings). Demo bookings are never synced.
+    const tenAgo = new Date(now - 10 * 60_000).toISOString();
+    const [{ data: failed }, { data: stale }] = await Promise.all([
+      d.from("bookings").select("id").eq("calendar_sync_status", "failed").eq("is_demo", false)
+        .lt("updated_at", tenAgo).gte("end_utc", new Date(now - 24 * H).toISOString()).limit(20),
+      d.from("bookings").select("id").not("google_event_id", "is", null).eq("is_demo", false)
+        .in("status", ["cancelled", "released", "no_show", "rescheduled"]).limit(20),
+    ]);
+    const ids = [...new Set([...(failed ?? []), ...(stale ?? [])].map((x) => x.id))];
+    for (const id of ids) {
+      c.calendarRetried++;
+      if ((await syncBookingCalendar(d, id)) === "synced") c.calendarFixed++;
+    }
+
+    // 6. Nudges for verified or admin-pasted leads with no booking; cold at 72h.
     const { data: leads } = await d.from("leads").select("id,email,full_name,source,email_verified_at,nudge_count,created_at,booking_token")
       .in("status", ["new", "link_sent", "started"]).eq("is_demo", false).not("email", "is", null)
       .lt("created_at", new Date(now - 24 * H).toISOString()).order("created_at").limit(BATCH);
@@ -186,7 +206,7 @@ export async function runAutomations(origin: string) {
       c.nudges++;
     }
   } finally {
-    const summary = `Expired ${c.expired}, deleted ${c.deleted}, completed ${c.completed}, flagged ${c.flagged}, released ${c.released}, nudges ${c.nudges}, cold ${c.cold}, reminders dropped ${c.cancelledReminders}`;
+    const summary = `Expired ${c.expired}, deleted ${c.deleted}, completed ${c.completed}, flagged ${c.flagged}, released ${c.released}, nudges ${c.nudges}, cold ${c.cold}, reminders dropped ${c.cancelledReminders}, calendar retries ${c.calendarRetried} (${c.calendarFixed} fixed)`;
     await d.from("settings").update({ automation_lock_until: null, automation_last_run_at: new Date().toISOString(), automation_last_summary: summary }).eq("id", 1);
   }
   return { skipped: false as const, counts: c };
