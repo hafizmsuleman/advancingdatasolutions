@@ -19,7 +19,7 @@ Build order: frontend-first with sample data, then Lovable Cloud (schema.sql pas
 - [ ] F12 Email sending (notify.advancingdatasolutions.com, reply-to contact@, Outbox logging)
 - [x] F13 Automations job (5-min + Run now, reminders, release, nudges)
 - [ ] F14 Admin auth + inbox AI (one admin: contact@advancingdatasolutions.com, manual creation)
-- [ ] F15 Google Calendar connector (decide at build time; until then all bookings use the Settings meeting link, placeholder https://meet.google.com/xyz)
+- [x] F15 Google Calendar
 - [ ] F16 Demo mode & cleanup jobs
 
 ## Phase 3 — Launch
