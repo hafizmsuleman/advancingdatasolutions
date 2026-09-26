@@ -1,4 +1,11 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { AlertCircle, Mail } from "lucide-react";
+
+import { BookingProgress } from "@/components/booking-progress";
+import { cn } from "@/lib/utils";
+import { loadDraft, saveDraft, type BookingDraft } from "@/lib/booking-draft";
+import { MEETING_LINK, newCode, newToken, saveBooking } from "@/lib/sample-bookings";
 
 const TITLE = "Verify your email — Advancing Data Solutions";
 const DESC = "Confirm your email with a 6-digit code to secure your consultation.";
@@ -14,15 +21,181 @@ export const Route = createFileRoute("/book/verify")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: () => (
-    <main className="flex flex-1 items-center justify-center px-4 py-16">
-      <div className="max-w-md rounded-xl border border-border bg-card p-8 text-center shadow-sm">
-        <h1 className="text-xl font-semibold tracking-tight">Email verification is coming next</h1>
-        <p className="mt-2 text-muted-foreground">Your chosen time is saved. We'll add the 6-digit code step in the next feature.</p>
-        <Link to="/book/slot" className="mt-6 inline-flex min-h-11 items-center rounded-md border border-border px-6 text-sm font-medium hover:bg-muted">
-          Back to times
-        </Link>
+  component: VerifyPage,
+});
+
+const STEPS = [{ label: "About you" }, { label: "Your project" }, { label: "Session" }, { label: "Time" }, { label: "Verify" }];
+const EXPIRY_S = 600;
+const RESEND_S = 60;
+const MAX_ATTEMPTS = 5;
+const MAX_RESENDS = 3;
+
+type Err = null | "wrong_code" | "expired" | "too_many_attempts" | "slot_taken";
+
+function VerifyPage() {
+  const navigate = useNavigate();
+  const [draft, setDraft] = useState<Partial<BookingDraft> | null | undefined>(undefined);
+  const [code, setCode] = useState("");
+  const [sentAt, setSentAt] = useState(0);
+  const [now, setNow] = useState(0);
+  const [attempts, setAttempts] = useState(0);
+  const [resends, setResends] = useState(0);
+  const [error, setError] = useState<Err>(null);
+  const [notice, setNotice] = useState("");
+  const [busy, setBusy] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setDraft(loadDraft());
+    const t = Date.now();
+    setSentAt(t);
+    setNow(t);
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const elapsed = sentAt ? Math.floor((now - sentAt) / 1000) : 0;
+  const remaining = Math.max(0, EXPIRY_S - elapsed);
+  const expired = sentAt > 0 && remaining === 0;
+  const locked = attempts >= MAX_ATTEMPTS || error === "slot_taken";
+  const resendIn = Math.max(0, RESEND_S - elapsed);
+
+  useEffect(() => {
+    if (expired && error !== "too_many_attempts") setError("expired");
+  }, [expired, error]);
+
+  if (draft === undefined) return <main className="flex-1" />;
+  if (!draft?.email || !draft.slotStart) {
+    return (
+      <main className="flex flex-1 items-center justify-center px-4 py-16">
+        <div className="max-w-md rounded-xl border border-border bg-card p-8 text-center shadow-sm">
+          <h1 className="text-xl font-semibold tracking-tight">Let's pick a time first</h1>
+          <p className="mt-2 text-muted-foreground">Choose a time for your consultation, then we'll send your code.</p>
+          <Link to="/book" className="mt-6 inline-flex min-h-11 items-center rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary-hover">Start booking</Link>
+        </div>
+      </main>
+    );
+  }
+
+  function submit(value: string) {
+    if (busy || locked || expired || value.length !== 6) return;
+    setBusy(true);
+    setNotice("");
+    setTimeout(() => {
+      setBusy(false);
+      if (value === "000000") {
+        setError("slot_taken");
+        saveDraft({ ...draft, slotStart: undefined });
+        setTimeout(() => navigate({ to: "/book/slot" }), 2500);
+        return;
+      }
+      if (value === "123456") {
+        const token = newToken();
+        saveBooking({
+          token, code: newCode(), name: draft!.name ?? "", email: draft!.email!, company: draft!.company ?? "",
+          duration: draft!.duration ?? 30, start: draft!.slotStart!,
+          timeZone: draft!.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone, meetingLink: MEETING_LINK,
+        });
+        navigate({ to: "/booked/$token", params: { token } });
+        return;
+      }
+      const n = attempts + 1;
+      setAttempts(n);
+      setError(n >= MAX_ATTEMPTS ? "too_many_attempts" : "wrong_code");
+      setCode("");
+      inputRef.current?.focus();
+    }, 400);
+  }
+
+  function onChange(v: string) {
+    const digits = v.replace(/\D/g, "").slice(0, 6);
+    setCode(digits);
+    if (error === "wrong_code") setError(null);
+    if (digits.length === 6) submit(digits);
+  }
+
+  function resend() {
+    if (resendIn > 0 || resends >= MAX_RESENDS || error === "slot_taken") return;
+    const t = Date.now();
+    setResends(resends + 1);
+    setSentAt(t);
+    setNow(t);
+    setAttempts(0);
+    setError(null);
+    setCode("");
+    setNotice(`We sent a new code to ${draft!.email}.`);
+    inputRef.current?.focus();
+  }
+
+  const messages: Record<Exclude<Err, null>, string> = {
+    wrong_code: `That code isn't right. ${MAX_ATTEMPTS - attempts} ${MAX_ATTEMPTS - attempts === 1 ? "attempt" : "attempts"} left.`,
+    expired: "This code has expired. Please request a new one.",
+    too_many_attempts: "Too many incorrect attempts. Please request a new code.",
+    slot_taken: "That time was just booked by someone else. Please choose another slot.",
+  };
+  const mm = String(Math.floor(remaining / 60)).padStart(2, "0");
+  const ss = String(remaining % 60).padStart(2, "0");
+  const canResend = resendIn === 0 && resends < MAX_RESENDS && error !== "slot_taken";
+
+  return (
+    <main className="flex-1 px-4 py-12 sm:py-16">
+      <div className="mx-auto w-full max-w-[640px]">
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-semibold tracking-tight">Check your email</h1>
+          <p className="mt-2 text-muted-foreground">One last step to confirm your consultation.</p>
+        </div>
+        <div className="step-transition rounded-xl border border-border bg-card p-6 shadow-sm sm:p-8">
+          <BookingProgress steps={STEPS} currentStep={4} />
+
+          <div className="mt-8 flex items-start gap-3">
+            <Mail className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
+            <p>We sent a 6-digit code to <strong className="font-medium break-all">{draft.email}</strong></p>
+          </div>
+
+          <label htmlFor="code" className="mt-6 block text-sm font-medium">Verification code</label>
+          <input
+            id="code" ref={inputRef} autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={6}
+            value={code} onChange={(e) => onChange(e.target.value)} disabled={busy || locked || expired}
+            aria-invalid={!!error} aria-describedby="code-status"
+            className={cn("mt-2 h-14 w-full rounded-md border bg-card px-4 text-center text-2xl font-semibold tracking-[0.5em] tnums",
+              error ? "border-destructive" : "border-input", "disabled:opacity-60")}
+            placeholder="••••••"
+          />
+
+          <div id="code-status" aria-live="polite" className="mt-3 min-h-6 text-sm">
+            {busy && <span className="text-muted-foreground">Checking…</span>}
+            {!busy && error && (
+              <span className={cn("flex items-start gap-2", error === "slot_taken" ? "text-warning" : "text-destructive")}>
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden /> {messages[error]}
+              </span>
+            )}
+            {!busy && !error && notice && <span className="text-success">{notice}</span>}
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+            <span className="tnums">{expired ? "Code expired" : <>Code expires in <strong className="font-medium text-foreground">{mm}:{ss}</strong></>}</span>
+            <button type="button" onClick={resend} disabled={!canResend}
+              className="min-h-11 font-medium text-primary underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline tnums">
+              {resends >= MAX_RESENDS ? "No more resends" : resendIn > 0 ? `Resend code in ${resendIn}s` : "Resend code"}
+            </button>
+          </div>
+
+          {error === "slot_taken" ? (
+            <Link to="/book/slot" className="mt-6 inline-flex min-h-11 w-full items-center justify-center rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary-hover">Choose another time</Link>
+          ) : (
+            <button type="button" onClick={() => submit(code)} disabled={code.length !== 6 || busy || locked || expired}
+              className="mt-6 min-h-11 w-full rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60">
+              Confirm booking
+            </button>
+          )}
+
+          <div className="mt-6 flex flex-wrap justify-between gap-3 text-sm">
+            <Link to="/book" className="font-medium text-primary underline-offset-4 hover:underline">Change email</Link>
+            <Link to="/book/slot" className="text-muted-foreground underline-offset-4 hover:underline">Back to times</Link>
+          </div>
+          <p className="mt-6 text-xs text-muted-foreground">Can't find it? Check your spam folder. The code is valid for 10 minutes.</p>
+        </div>
       </div>
     </main>
-  ),
-});
+  );
+}
