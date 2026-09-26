@@ -8,6 +8,27 @@
       "when": 1790458210044,
       "tag": "0000_booking_portal_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790462723822,
+      "tag": "0001_automations_lock",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790462874933,
+      "tag": "0002_private_cron_secret",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790462908815,
+      "tag": "0003_cron_token_check",
+      "breakpoints": true
     }
   ]
 }

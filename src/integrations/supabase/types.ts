@@ -433,6 +433,9 @@ export type Database = {
         Row: {
           attendance_flag_hours: number
           attendance_release_hours: number
+          automation_last_run_at: string | null
+          automation_last_summary: string | null
+          automation_lock_until: string | null
           booking_horizon_days: number
           budget_threshold: Database["public"]["Enums"]["budget_range"]
           buffer_min: number
@@ -452,6 +455,9 @@ export type Database = {
         Insert: {
           attendance_flag_hours?: number
           attendance_release_hours?: number
+          automation_last_run_at?: string | null
+          automation_last_summary?: string | null
+          automation_lock_until?: string | null
           booking_horizon_days?: number
           budget_threshold?: Database["public"]["Enums"]["budget_range"]
           buffer_min?: number
@@ -471,6 +477,9 @@ export type Database = {
         Update: {
           attendance_flag_hours?: number
           attendance_release_hours?: number
+          automation_last_run_at?: string | null
+          automation_last_summary?: string | null
+          automation_lock_until?: string | null
           booking_horizon_days?: number
           budget_threshold?: Database["public"]["Enums"]["budget_range"]
           buffer_min?: number
@@ -497,6 +506,10 @@ export type Database = {
       cancel_booking_by_token: {
         Args: { p_reason: string; p_token: string }
         Returns: string
+      }
+      check_job_token: {
+        Args: { p_name: string; p_token: string }
+        Returns: boolean
       }
       confirm_attendance: { Args: { p_token: string }; Returns: string }
       confirm_booking: {
