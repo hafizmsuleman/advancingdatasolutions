@@ -63,7 +63,7 @@ function Bookings() {
         )}
       </div>
       <Panel className="overflow-x-auto">
-        <table className="w-full min-w-[860px]">
+        <table className="w-full min-w-[1000px]">
           <thead className="border-b border-border bg-muted/50">
             <tr>
               <th className={th}>Client</th><th className={th}>Area</th><th className={th}>Team time (PKT)</th>
