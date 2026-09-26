@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Panel, Pill, PageIntro, btn, field, th, td } from "@/components/admin-ui";
 import { useAdminBookings, useInvalidateAdmin } from "@/lib/admin-data";
 import { supabase } from "@/integrations/supabase/client";
-import { TEAM_TZ, fmtIn, dayKeyIn, tzLabel, type AdminBooking, type BookingStatus } from "@/lib/admin-sample";
+import { browserTimeZone, fmtIn, dayKeyIn, tzLabel, type AdminBooking, type BookingStatus } from "@/lib/admin-sample";
 import { BookingDrawer } from "@/components/booking-drawer";
 
 export const Route = createFileRoute("/admin/bookings")({
@@ -37,7 +37,7 @@ function Bookings() {
   const shown = rows
     .filter((b) => status === "all" || b.status === status)
     .filter((b) => area === "all" || b.area === area)
-    .filter((b) => !date || dayKeyIn(b.start, TEAM_TZ) === date)
+    .filter((b) => !date || dayKeyIn(b.start, browserTimeZone()) === date)
     .sort((a, b) => a.start.localeCompare(b.start));
 
   const set = (id: string, s: BookingStatus, msg: string) => {
@@ -63,7 +63,7 @@ function Bookings() {
           <option value="all">All areas</option>
           <option value="Data">Data</option><option value="AI">AI</option><option value="Web">Web</option>
         </select>
-        <label className="sr-only" htmlFor="f-date">Date (team time)</label>
+        <label className="sr-only" htmlFor="f-date">Date (your time)</label>
         <input id="f-date" type="date" className={field} value={date} onChange={(e) => setDate(e.target.value)} />
         {(status !== "all" || area !== "all" || date) && (
           <button className={btn + " h-9"} onClick={() => { setStatus("all"); setArea("all"); setDate(""); }}>Clear</button>
@@ -73,8 +73,8 @@ function Bookings() {
         <table className="w-full min-w-[1000px]">
           <thead className="border-b border-border bg-muted/50">
             <tr>
-              <th className={th}>Client</th><th className={th}>Area</th><th className={th}>Team time (PKT)</th>
-              <th className={th}>Client time</th><th className={th}>Length</th><th className={th}>Status</th><th className={th}><span className="sr-only">Actions</span></th>
+              <th className={th}>Client</th><th className={th}>Area</th><th className={th}>Your time</th>
+              <th className={th}>Client's time (City)</th><th className={th}>Length</th><th className={th}>Status</th><th className={th}><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -88,7 +88,7 @@ function Bookings() {
                   <div className="text-xs text-muted-foreground">{b.name} · {b.code}</div>
                 </td>
                 <td className={td}>{b.area}</td>
-                <td className={td + " tabular-nums"}>{fmtIn(b.start, TEAM_TZ)}</td>
+                <td className={td + " tabular-nums"}>{fmtIn(b.start, browserTimeZone())}</td>
                 <td className={td + " tabular-nums"}>{fmtIn(b.start, b.clientTz)}<div className="text-xs text-muted-foreground">{tzLabel(b.clientTz)}</div></td>
                 <td className={td + " tabular-nums"}>{b.duration} min</td>
                 <td className={td}><Pill tone={STATUS[b.status].tone}>{STATUS[b.status].label}</Pill></td>

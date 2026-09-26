@@ -1,7 +1,7 @@
 import { FileSignature, BadgeCheck, CalendarCheck, Clock } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Pill } from "@/components/admin-ui";
-import { TEAM_TZ, fmtIn, tzLabel, type AdminBooking } from "@/lib/admin-sample";
+import { browserTimeZone, fmtIn, tzLabel, type AdminBooking } from "@/lib/admin-sample";
 
 export function Badges({ b }: { b: AdminBooking }) {
   return (
@@ -31,14 +31,14 @@ export function BookingDrawer({ b, onClose }: { b: AdminBooking | null; onClose:
                   ["Email", b.email],
                   ["Country", b.country],
                   ["Session", `Free Consultation · ${b.duration} min`],
-                  ["Team time", `${fmtIn(b.start, TEAM_TZ)} (PKT)`],
-                  ["Client time", `${fmtIn(b.start, b.clientTz)} (${tzLabel(b.clientTz)})`],
+                  ["Your time", fmtIn(b.start, browserTimeZone())],
+                  [`Client's time (${tzLabel(b.clientTz)})`, fmtIn(b.start, b.clientTz)],
                   ["Project area", b.area],
                   ["Platform", b.platform],
                   ["Need", b.need],
                   ["Timeline", b.timeline],
                   ["Budget", b.budget],
-                  ["Booked", fmtIn(b.createdAt, TEAM_TZ)],
+                  ["Booked", fmtIn(b.createdAt, browserTimeZone())],
                 ].map(([k, v]) => (
                   <div key={k} className="contents">
                     <dt className="text-muted-foreground">{k}</dt>

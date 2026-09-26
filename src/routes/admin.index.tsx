@@ -3,21 +3,21 @@ import { useState } from "react";
 import { CalendarDays, FileSignature, Mail, Timer, Inbox } from "lucide-react";
 import { Badges, BookingDrawer } from "@/components/booking-drawer";
 import { Panel, PageIntro } from "@/components/admin-ui";
-import { TEAM_TZ, fmtIn, tzLabel, type AdminBooking } from "@/lib/admin-sample";
+import { browserTimeZone, fmtIn, tzLabel, type AdminBooking } from "@/lib/admin-sample";
 import { useAdminBookings, useAdminStats } from "@/lib/admin-data";
 
 export const Route = createFileRoute("/admin/")({
   head: () => ({
     meta: [
-      { title: "Overnight — Admin — Advancing Data Solutions" },
-      { name: "description", content: "Overnight bookings and automation stats." },
+      { title: "Dashboard — Admin — Advancing Data Solutions" },
+      { name: "description", content: "New bookings and automation stats." },
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: Overnight,
+  component: Dashboard,
 });
 
-function Overnight() {
+function Dashboard() {
   const [open, setOpen] = useState<AdminBooking | null>(null);
   const { data: all = [] } = useAdminBookings();
   const { data: STATS = { bookingsThisWeek: 0, ndasSigned: 0, emailsAutomated: 0, hoursSaved: 0 } } = useAdminStats();
@@ -65,8 +65,8 @@ function Overnight() {
                   <span className="text-muted-foreground">Area / platform</span><span>{b.area} · {b.platform}</span>
                   <span className="text-muted-foreground">Need</span><span>{b.need}</span>
                   <span className="text-muted-foreground">Budget</span><span className="tabular-nums">{b.budget}</span>
-                  <span className="text-muted-foreground">Team (PKT)</span><span className="tabular-nums">{fmtIn(b.start, TEAM_TZ)}</span>
-                  <span className="text-muted-foreground">Client ({tzLabel(b.clientTz)})</span><span className="tabular-nums">{fmtIn(b.start, b.clientTz)}</span>
+                   <span className="text-muted-foreground">Your time</span><span className="tabular-nums">{fmtIn(b.start, browserTimeZone())}</span>
+                   <span className="text-muted-foreground">Client's time ({tzLabel(b.clientTz)})</span><span className="tabular-nums">{fmtIn(b.start, b.clientTz)}</span>
                 </div>
                 <div className="mt-3"><Badges b={b} /></div>
               </Panel>

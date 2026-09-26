@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Panel, Pill, PageIntro, btn } from "@/components/admin-ui";
 import { useAdminOutbox, useInvalidateAdmin } from "@/lib/admin-data";
 import { supabase } from "@/integrations/supabase/client";
-import { TEAM_TZ, fmtIn, type EmailStatus, type OutboxEmail } from "@/lib/admin-sample";
+import { browserTimeZone, fmtIn, type EmailStatus, type OutboxEmail } from "@/lib/admin-sample";
 
 export const Route = createFileRoute("/admin/outbox")({
   head: () => ({
@@ -38,7 +38,7 @@ function Outbox() {
   };
   return (
     <div className="mx-auto max-w-4xl">
-      <PageIntro title="Outbox">Every automated email, logged. Times in team time (PKT).</PageIntro>
+      <PageIntro title="Outbox">Times shown in your time.</PageIntro>
       <Panel className="divide-y divide-border">
         {sorted.map((e) => {
           const s = STATUS[e.status];
@@ -53,7 +53,7 @@ function Outbox() {
                 <p className="mt-0.5 truncate text-sm text-muted-foreground">{e.body.split("\n").find((l) => l.trim() && !/^Hi /.test(l)) ?? e.body}</p>
               </button>
               <div className="flex shrink-0 flex-col items-end gap-1.5">
-                <span className="text-xs tabular-nums text-muted-foreground">{fmtIn(e.at, TEAM_TZ)}</span>
+                 <span className="text-xs tabular-nums text-muted-foreground">{fmtIn(e.at, browserTimeZone())}</span>
                 <Pill tone={s.tone} icon={s.icon}>{s.label}</Pill>
                 {e.status === "failed" && (
                   <button className={btn} onClick={() => retry(e.id)}><RotateCw className="h-3 w-3" aria-hidden />Retry</button>
@@ -69,7 +69,7 @@ function Outbox() {
             <>
               <SheetHeader>
                 <SheetTitle>{open.subject}</SheetTitle>
-                <SheetDescription>To {open.to} · {fmtIn(open.at, TEAM_TZ)}</SheetDescription>
+                 <SheetDescription>To {open.to} · {fmtIn(open.at, browserTimeZone())}</SheetDescription>
               </SheetHeader>
               <div className="space-y-3 px-4 pb-6">
                 <div className="flex gap-2 text-xs text-muted-foreground">
