@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AttendTokenRouteImport } from './routes/attend.$token'
 import { Route as BookIndexRouteImport } from './routes/book.index'
 import { Route as BookSessionRouteImport } from './routes/book.session'
@@ -26,10 +28,20 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AttendTokenRoute = AttendTokenRouteImport.update({
   id: '/attend/$token',
@@ -79,7 +91,9 @@ const RescheduleTokenRoute = RescheduleTokenRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/privacy': typeof PrivacyRoute
+  '/admin/login': typeof AdminLoginRoute
   '/attend/$token': typeof AttendTokenRoute
   '/book/session': typeof BookSessionRoute
   '/book/slot': typeof BookSlotRoute
@@ -92,7 +106,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/privacy': typeof PrivacyRoute
+  '/admin/login': typeof AdminLoginRoute
   '/attend/$token': typeof AttendTokenRoute
   '/book/session': typeof BookSessionRoute
   '/book/slot': typeof BookSlotRoute
@@ -106,7 +122,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/privacy': typeof PrivacyRoute
+  '/admin/login': typeof AdminLoginRoute
   '/attend/$token': typeof AttendTokenRoute
   '/book/session': typeof BookSessionRoute
   '/book/slot': typeof BookSlotRoute
@@ -121,7 +139,9 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/privacy'
+    | '/admin/login'
     | '/attend/$token'
     | '/book/session'
     | '/book/slot'
@@ -134,7 +154,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/privacy'
+    | '/admin/login'
     | '/attend/$token'
     | '/book/session'
     | '/book/slot'
@@ -147,7 +169,9 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/privacy'
+    | '/admin/login'
     | '/attend/$token'
     | '/book/session'
     | '/book/slot'
@@ -161,6 +185,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
   PrivacyRoute: typeof PrivacyRoute
   AttendTokenRoute: typeof AttendTokenRoute
   BookSessionRoute: typeof BookSessionRoute
@@ -182,12 +207,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacy': {
       id: '/privacy'
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/attend/$token': {
       id: '/attend/$token'
@@ -255,8 +294,19 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AdminRouteChildren {
+  AdminLoginRoute: typeof AdminLoginRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminLoginRoute: AdminLoginRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
   PrivacyRoute: PrivacyRoute,
   AttendTokenRoute: AttendTokenRoute,
   BookSessionRoute: BookSessionRoute,
