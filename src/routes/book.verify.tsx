@@ -42,6 +42,7 @@ function VerifyPage() {
   const [resends, setResends] = useState(0);
   const [error, setError] = useState<Err>(null);
   const [notice, setNotice] = useState("");
+  const [limitMsg, setLimitMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -114,10 +115,22 @@ function VerifyPage() {
     if (digits.length === 6) submit(digits);
   }
 
+  function toastLimit(e: "rate_limited" | "too_soon" | "max_resends") {
+    setLimitMsg(e === "too_soon" ? "Please wait a minute before asking for another code."
+      : e === "max_resends" ? "You've reached the maximum number of new codes. Please start again or email contact@advancingdatasolutions.com."
+      : "We've sent a lot of codes recently. Please try again in an hour.");
+  }
+
   async function resend() {
     if (resendIn > 0 || resends >= MAX_RESENDS || error === "slot_taken") return;
     const r = await resendCode({ data: { bookingId: draft!.bookingId! } }).catch(() => ({ error: "server" as const }));
     if ("error" in r) {
+      if (r.error === "rate_limited" || r.error === "too_soon" || r.error === "max_resends") {
+        setError(null);
+        setNotice("");
+        toastLimit(r.error);
+        return;
+      }
       setNotice("");
       setError(r.error === "expired" ? "expired" : "server");
       return;
@@ -178,6 +191,7 @@ function VerifyPage() {
               </span>
             )}
             {!busy && !error && notice && <span className="text-success">{notice}</span>}
+            {!busy && !error && !notice && limitMsg && <span role="alert" className="text-warning">{limitMsg}</span>}
           </div>
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
