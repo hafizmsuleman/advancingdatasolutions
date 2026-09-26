@@ -28,7 +28,7 @@ export const Route = createFileRoute("/nda/$token")({
 const schema = z.object({
   name: z.string().trim().min(2, "Please type your full name.").max(100, "Name must be under 100 characters."),
   title: z.string().trim().min(2, "Please enter your job title.").max(100, "Job title must be under 100 characters."),
-  agree: z.literal(true, { message: "Please confirm you agree on behalf of your company." }),
+  agree: z.boolean().refine((v) => v, "Please confirm you agree on behalf of your company."),
 });
 
 function NdaPage() {
