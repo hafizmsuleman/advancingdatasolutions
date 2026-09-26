@@ -36,7 +36,7 @@ export async function analyzeInquiry(text: string, source: string, signal?: Abor
     model: provider.responses("openai/gpt-6-astra"),
     system: PROMPT,
     prompt: `Source channel: ${source}\n\nInquiry:\n${text}`,
-    abortSignal: signal,
+    ...(signal ? { abortSignal: signal } : {}),
     providerOptions: {
       openai: { forceReasoning: true, reasoningEffort: "low", reasoningSummary: "auto", store: false, include: ["reasoning.encrypted_content"] },
     },
