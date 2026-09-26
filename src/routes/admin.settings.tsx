@@ -128,6 +128,8 @@ function SettingsPage() {
     const { error } = await supabase.from("settings").update({ virtual_clock_offset_min: h * 60 }).eq("id", 1);
     if (error) { toast.error("Couldn't change simulated time"); return; }
     setOffset(h);
+    if (h > 0) await runNow();
+    else invalidate();
   }
 
   return (
@@ -218,7 +220,15 @@ function SettingsPage() {
               <button key={h} className={btn + " h-9"} disabled={!demo} onClick={() => setClock(offset + h)}>+{h}h</button>
             ))}
             <button className={btn + " h-9"} disabled={!demo || offset === 0} onClick={() => setClock(0)}>Reset</button>
-            <span className="text-sm tabular-nums text-muted-foreground">Offset: +{offset}h</span>
+          </div>
+          {demo && (
+            <div className="mt-3 rounded-[10px] border border-border bg-muted px-3 py-2 text-sm" role="status">
+              <span className="font-medium tabular-nums">Simulated time: {offset === 0 ? "real time (no offset)" : `+${offset}h`}</span>
+              {offset > 0 && <span className="text-muted-foreground tabular-nums"> · demo clock reads {new Date(Date.now() + offset * 3600_000).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</span>}
+              <div className="text-xs text-muted-foreground">Each step runs the automations straight away. Real bookings always use real time.</div>
+            </div>
+          )}
+          <div className="hidden">
           </div>
         </div>
       </Section>
