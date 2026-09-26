@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Sparkles, Copy, Loader2, Ban } from "lucide-react";
-import { Panel, PageIntro, btn, btnPrimary, field } from "@/components/admin-ui";
+import { Panel, PageIntro, btnPrimary, field } from "@/components/admin-ui";
 import { supabase } from "@/integrations/supabase/client";
 import { analyze } from "@/lib/inbox.functions";
 import { useInvalidateAdmin } from "@/lib/admin-data";
