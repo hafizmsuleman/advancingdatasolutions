@@ -12,6 +12,7 @@ export type SampleBooking = {
   start: string; // ISO UTC
   timeZone: string;
   meetingLink: string;
+  nda?: { name: string; title: string; signedAt: string } | undefined;
 };
 
 function rand(chars: string, n: number) {
