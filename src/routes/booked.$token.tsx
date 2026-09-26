@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CalendarPlus, CheckCircle2, Clock, FileSignature, Video } from "lucide-react";
 
+import { StatusBadge } from "@/components/status-badge";
 import { buildIcs, getBooking, type SampleBooking } from "@/lib/sample-bookings";
 
 const TITLE = "You're booked — Advancing Data Solutions";
@@ -63,6 +64,7 @@ function BookedPage() {
           <div className="text-center">
             <CheckCircle2 className="mx-auto h-12 w-12 text-success" aria-hidden />
             <h1 className="mt-4 text-3xl font-semibold tracking-tight">You're booked</h1>
+            {b.nda && <div className="mt-3"><StatusBadge kind="nda-signed" /></div>}
             <p className="mt-2 text-muted-foreground">We've sent the details to <span className="break-all font-medium text-foreground">{b.email}</span>.</p>
           </div>
 
@@ -91,11 +93,21 @@ function BookedPage() {
             <button type="button" onClick={download} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-border px-6 text-sm font-medium hover:bg-muted">
               <CalendarPlus className="h-4 w-4" aria-hidden /> Add to calendar
             </button>
-            <Link to="/nda/$token" params={{ token }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary-hover">
-              <FileSignature className="h-4 w-4" aria-hidden /> Sign NDA
-            </Link>
+            {b.nda ? (
+              <Link to="/nda/$token" params={{ token }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-border px-6 text-sm font-medium hover:bg-muted">
+                <FileSignature className="h-4 w-4" aria-hidden /> View signed NDA
+              </Link>
+            ) : (
+              <Link to="/nda/$token" params={{ token }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary-hover">
+                <FileSignature className="h-4 w-4" aria-hidden /> Sign NDA
+              </Link>
+            )}
           </div>
-          <p className="mt-3 text-sm text-muted-foreground">Signing our mutual NDA before the call lets you share details freely. It takes a minute.</p>
+          {b.nda ? (
+            <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground"><StatusBadge kind="nda-signed" /> Signed by {b.nda.name}</p>
+          ) : (
+            <p className="mt-3 text-sm text-muted-foreground">Signing our mutual NDA before the call lets you share details freely. It takes a minute.</p>
+          )}
 
           <div className="mt-8 flex justify-center gap-6 border-t border-border pt-6 text-sm">
             <Link to="/reschedule/$token" params={{ token }} className="font-medium text-primary underline-offset-4 hover:underline">Reschedule</Link>
