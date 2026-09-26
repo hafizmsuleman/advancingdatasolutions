@@ -41,6 +41,18 @@ function BookedPage() {
     );
   }
 
+  if (b.cancelledAt) {
+    return (
+      <main className="flex flex-1 items-center justify-center px-4 py-16">
+        <div className="max-w-md rounded-xl border border-border bg-card p-8 text-center shadow-sm">
+          <h1 className="text-xl font-semibold tracking-tight">This consultation was cancelled</h1>
+          <p className="mt-2 text-muted-foreground">Booking {b.code} is no longer active. You're welcome to book a new time.</p>
+          <Link to="/book" className="mt-6 inline-flex min-h-11 items-center rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary-hover">Book a new time</Link>
+        </div>
+      </main>
+    );
+  }
+
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const s = Date.parse(b.start);
   const e = s + b.duration * 60000;
@@ -64,7 +76,12 @@ function BookedPage() {
           <div className="text-center">
             <CheckCircle2 className="mx-auto h-12 w-12 text-success" aria-hidden />
             <h1 className="mt-4 text-3xl font-semibold tracking-tight">You're booked</h1>
-            {b.nda && <div className="mt-3"><StatusBadge kind="nda-signed" /></div>}
+            {(b.nda || b.attendanceConfirmedAt) && (
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                {b.nda && <StatusBadge kind="nda-signed" />}
+                {b.attendanceConfirmedAt && <StatusBadge kind="attendance-confirmed" />}
+              </div>
+            )}
             <p className="mt-2 text-muted-foreground">We've sent the details to <span className="break-all font-medium text-foreground">{b.email}</span>.</p>
           </div>
 
