@@ -20,7 +20,7 @@ export function partsIn(ms: number, tz: string): Parts {
   });
   const o: Record<string, string> = {};
   for (const p of f.formatToParts(new Date(ms))) o[p.type] = p.value;
-  return { y: +o.year!, m: +o.month!, d: +o.day!, h: +o.hour! % 24, min: +o.minute!, wd: WD[o.weekday!] ?? 0 };
+  return { y: +o["year"]!, m: +o["month"]!, d: +o["day"]!, h: +o["hour"]! % 24, min: +o["minute"]!, wd: WD[o["weekday"]!] ?? 0 };
 }
 
 function offsetMs(ms: number, tz: string) {
