@@ -86,7 +86,7 @@ export function useAdminLeads() {
       return (data ?? []).map((l) => {
         const email = (l.email ?? "").toLowerCase();
         const isBlocked = bl.has(email) || bl.has(email.split("@")[1] ?? "");
-        const status: LeadStatus = isBlocked ? "blocked" : l.status === "booked" ? "booked" : l.status === "cold" ? "cold" : l.nudge_count > 0 ? "nudged" : "new";
+        const status: LeadStatus = isBlocked ? "blocked" : l.status === "booked" ? "booked" : l.status === "cold" ? "cold" : l.nudge_count > 0 ? "nudged" : l.status === "link_sent" ? "link_sent" : "new";
         return {
           id: l.id, name: l.full_name ?? "—", email: l.email ?? "", company: l.company ?? "—", country: l.client_tz ? tzLabel(l.client_tz) : "",
           status, source: src[l.source] ?? "Form", area: (AREA_LABEL[l.project_area ?? ""] ?? "Data") as AdminLead["area"],
@@ -113,6 +113,13 @@ export function useAdminOutbox() {
 }
 
 export { cap };
+
+/** Remove an email and its domain from blocked_senders. */
+export async function unblockSender(email: string): Promise<boolean> {
+  const e = email.toLowerCase();
+  const { error } = await supabase.from("blocked_senders").delete().in("value", [e, e.split("@")[1] ?? e]);
+  return !error;
+}
 
 /** Ask which email or domain to block, then add it to blocked_senders. */
 export async function blockSender(email: string, source: string): Promise<boolean | null> {

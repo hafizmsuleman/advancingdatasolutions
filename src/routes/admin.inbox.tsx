@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Sparkles, Copy, Loader2, Ban } from "lucide-react";
-import { Panel, PageIntro, btn, btnPrimary, field } from "@/components/admin-ui";
+import { Panel, PageIntro, btnPrimary, field } from "@/components/admin-ui";
 import { supabase } from "@/integrations/supabase/client";
 import { analyze } from "@/lib/inbox.functions";
 import { useInvalidateAdmin } from "@/lib/admin-data";
@@ -53,24 +53,33 @@ function InboxPage() {
   async function save() {
     if (!r || saving) return;
     setSaving(true);
-    const { data, error } = await supabase.from("leads").insert({
+    const row = {
       source: SRC_DB[source], raw_message: text.slice(0, 5000),
-      full_name: r.name || null, company: r.company || null, role: r.role || null, email: r.email || null,
+      full_name: r.name || null, company: r.company || null, role: r.role || null, email: r.email ? r.email.trim().toLowerCase() : null,
       project_area: r.area, platform: PLATFORM_TO_DB[r.platform] ?? "not_decided", need: NEED_TO_DB[r.need] ?? "other",
       budget_range: r.budget ? BUDGET_TO_DB[r.budget] ?? null : null,
       ai_summary: r.summary, ai_reply_draft: r.reply, notes: `Urgency: ${r.urgency}`,
-    }).select("id, booking_token").single();
+    } as const;
+    let existingId: string | null = null;
+    if (row.email) {
+      const { data: ex } = await supabase.from("leads").select("id").ilike("email", row.email).eq("is_demo", false)
+        .order("created_at", { ascending: false }).limit(1);
+      existingId = ex?.[0]?.id ?? null;
+    }
+    const { data, error } = existingId
+      ? await supabase.from("leads").update(row).eq("id", existingId).select("id, booking_token").single()
+      : await supabase.from("leads").insert(row).select("id, booking_token").single();
     setSaving(false);
     if (error || !data) { toast.error("Couldn't save the lead"); return; }
     setSaved({ id: data.id, token: data.booking_token });
-    toast.success("Lead saved");
+    toast.success(existingId ? "Existing lead updated" : "Lead saved");
     invalidate();
   }
 
   async function copy() {
     if (!saved) return;
-    await navigator.clipboard?.writeText(replyText);
-    const { error } = await supabase.from("leads").update({ status: "link_sent" }).eq("id", saved.id).eq("status", "new");
+    try { await navigator.clipboard.writeText(replyText); } catch { toast.error("Couldn't copy. Select the text and copy it manually."); return; }
+    const { error } = await supabase.from("leads").update({ status: "link_sent" }).eq("id", saved.id).in("status", ["new", "link_sent", "started", "cold"]);
     toast.success(error ? "Reply copied" : "Reply copied. Lead marked as link sent");
     invalidate();
   }
@@ -154,19 +163,20 @@ function InboxPage() {
                 <Row label="Summary"><textarea className={input} rows={3} value={r.summary} onChange={(e) => upd("summary", e.target.value)} disabled={!!saved} /></Row>
               </div>
               <div>
-                <div className="mb-1 flex items-center justify-between">
-                  <h3 className="text-xs font-medium text-muted-foreground">Reply draft</h3>
-                  <button className={btn} disabled={!saved} onClick={copy} title={saved ? undefined : "Save the lead first"}>
-                    <Copy className="h-3 w-3" aria-hidden />Copy reply
-                  </button>
-                </div>
+                <h3 className="mb-1 text-xs font-medium text-muted-foreground">Reply draft</h3>
                 <textarea aria-label="Reply draft" rows={9} value={replyText}
                   onChange={(e) => upd("reply", e.target.value.replace(saved ? link : PENDING, LINK))}
                   className="w-full rounded-lg border border-border bg-background p-3 text-sm leading-relaxed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
               </div>
-              <button className={btnPrimary} disabled={!!saved || saving} onClick={save}>
-                {saved ? "Lead saved" : saving ? "Saving…" : "Save lead"}
-              </button>
+              {saved ? (
+                <button className={btnPrimary} onClick={copy}>
+                  <Copy className="h-4 w-4" aria-hidden />Copy reply
+                </button>
+              ) : (
+                <button className={btnPrimary} disabled={saving} onClick={save}>
+                  {saving ? "Saving…" : "Save lead"}
+                </button>
+              )}
             </div>
           )}
         </Panel>

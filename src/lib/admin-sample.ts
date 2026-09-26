@@ -100,7 +100,7 @@ export const SAMPLE_BOOKINGS: AdminBooking[] = [
   },
 ];
 
-export type LeadStatus = "new" | "nudged" | "booked" | "cold" | "blocked";
+export type LeadStatus = "new" | "link_sent" | "nudged" | "booked" | "cold" | "blocked";
 export type AdminLead = {
   id: string; name: string; email: string; company: string; country: string;
   status: LeadStatus; source: "Form" | "LinkedIn" | "Email" | "WhatsApp";
