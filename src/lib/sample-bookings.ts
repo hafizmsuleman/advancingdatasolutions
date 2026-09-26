@@ -12,6 +12,10 @@ export type SampleBooking = {
   start: string; // ISO UTC
   timeZone: string;
   meetingLink: string;
+  attendanceConfirmedAt?: string | undefined;
+  cancelledAt?: string | undefined;
+  cancelReason?: string | undefined;
+  rescheduledAt?: string | undefined;
   nda?: { name: string; title: string; signedAt: string } | undefined;
 };
 
