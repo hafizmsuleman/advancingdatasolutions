@@ -20,6 +20,7 @@ import logoAsset from "@/assets/ads-logo-horizontal.svg.asset.json";
 
 const logoUrl = logoAsset.url;
 import { cn } from "@/lib/utils";
+import { Toaster } from "@/components/ui/sonner";
 
 export const Route = createFileRoute("/admin")({
   component: AdminLayout,
@@ -137,6 +138,7 @@ function AdminLayout() {
         <main className="flex-1 p-4 md:p-6">
           <Outlet />
         </main>
+        <Toaster />
       </div>
     </div>
   );

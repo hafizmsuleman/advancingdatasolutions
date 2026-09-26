@@ -3,7 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Panel, Pill, PageIntro, DemoNote, btn, field, th, td } from "@/components/admin-ui";
 import { SAMPLE_BOOKINGS, TEAM_TZ, fmtIn, tzLabel, type AdminBooking, type BookingStatus } from "@/lib/admin-sample";
-import { BookingDrawer } from "./admin.index";
+import { BookingDrawer } from "@/components/booking-drawer";
 
 export const Route = createFileRoute("/admin/bookings")({
   head: () => ({
