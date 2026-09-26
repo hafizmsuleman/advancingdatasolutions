@@ -49,7 +49,7 @@ function AdminLayout() {
 
   const current =
     NAV.find((n) => (n.exact ? pathname === n.to : pathname.startsWith(n.to))) ??
-    NAV[0];
+    ({ title: "Admin" } as const);
 
   const isActive = (to: string, exact?: boolean) =>
     exact ? pathname === to : pathname.startsWith(to);
