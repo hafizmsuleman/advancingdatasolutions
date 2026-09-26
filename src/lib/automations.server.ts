@@ -78,7 +78,7 @@ export async function runAutomations(origin: string) {
     .eq("id", 1).or(`automation_lock_until.is.null,automation_lock_until.lt.${nowIso}`).select("*").maybeSingle();
   if (!lease) return { skipped: true as const, summary: "Another run is in progress." };
 
-  const c = { calendarRetried: 0, calendarFixed: 0, expired: 0, deleted: 0, cancelledReminders: 0, flagged: 0, released: 0, completed: 0, nudges: 0, cold: 0 };
+  const c = { calendarRetried: 0, calendarFixed: 0, expired: 0, deleted: 0, cancelledReminders: 0, flagged: 0, released: 0, completed: 0, nudges: 0, cold: 0, demoReminders: 0 };
   try {
     const now = Date.now();
     const demoNow = now + lease.virtual_clock_offset_min * 60_000;
@@ -123,7 +123,7 @@ export async function runAutomations(origin: string) {
     }
 
     // 4. Active bookings: complete, release at 6h, flag at 12h.
-    let bq = d.from("bookings").select("id,code,email,start_utc,end_utc,length_min,client_tz,status,manage_token,lead_id,is_demo,attendance_confirmed_at, leads(full_name,company)")
+    let bq = d.from("bookings").select("id,code,email,start_utc,end_utc,length_min,client_tz,status,manage_token,lead_id,is_demo,attendance_confirmed_at,created_at, leads(full_name,company), ndas(id)")
       .in("status", ["confirmed", "attendance_confirmed"]).order("start_utc").limit(BATCH);
     if (!lease.demo_mode) bq = bq.eq("is_demo", false);
     const { data: active } = await bq;
@@ -134,6 +134,23 @@ export async function runAutomations(origin: string) {
       if (Date.parse(b.end_utc) < t) {
         await d.from("bookings").update({ status: "completed" }).eq("id", b.id).in("status", ["confirmed", "attendance_confirmed"]);
         c.completed++; continue;
+      }
+      // Demo bookings: reminders follow the virtual clock (real ones are queued ahead at confirm).
+      if (b.is_demo && start > t) {
+        const signed = Array.isArray(b.ndas) ? b.ndas.length > 0 : !!b.ndas;
+        const wants: MsgType[] = [];
+        if (!signed && t >= Date.parse(b.created_at) + 2 * H) wants.push("nda_reminder");
+        if (start - t <= 24 * H && start - Date.parse(b.created_at) >= 26 * H) wants.push("reminder_24h");
+        if (start - t <= H) wants.push("reminder_1h");
+        if (wants.length) {
+          const { data: have } = await d.from("messages").select("type").eq("booking_id", b.id).in("type", wants).neq("status", "cancelled");
+          for (const w of wants.filter((x) => !(have ?? []).some((h) => h.type === x))) {
+            const subj = w === "nda_reminder" ? "Your NDA is ready to sign" : w === "reminder_24h" ? "Tomorrow: your consultation" : "Starting in 1 hour: your consultation";
+            await queue(d, { type: w, booking_id: b.id, lead_id: b.lead_id, to_email: b.email, subject: subj,
+              body: `${first(lead?.full_name)}'s consultation ${b.code} on ${when(b.start_utc, b.client_tz)} (demo, simulated time).\n\n${origin}/booked/${b.manage_token}${SIGN}` }, true);
+            c.demoReminders++;
+          }
+        }
       }
       if (b.status !== "confirmed" || b.attendance_confirmed_at || start <= t) continue;
       const left = start - t;
@@ -178,13 +195,13 @@ export async function runAutomations(origin: string) {
     }
 
     // 6. Nudges for verified or admin-pasted leads with no booking; cold at 72h.
-    const { data: leads } = await d.from("leads").select("id,email,full_name,source,email_verified_at,nudge_count,created_at,booking_token")
-      .in("status", ["new", "link_sent", "started"]).eq("is_demo", false).not("email", "is", null)
-      .lt("created_at", new Date(now - 24 * H).toISOString()).order("created_at").limit(BATCH);
+    const { data: leads } = await d.from("leads").select("id,email,full_name,source,email_verified_at,nudge_count,created_at,booking_token,is_demo")
+      .in("status", ["new", "link_sent", "started"]).in("is_demo", lease.demo_mode ? [false, true] : [false]).not("email", "is", null)
+      .lt("created_at", new Date(demoNow - 24 * H).toISOString()).order("created_at").limit(BATCH);
     const { data: blocked } = await d.from("blocked_senders").select("value");
     const bl = new Set((blocked ?? []).map((x) => x.value.toLowerCase()));
     for (const l of leads ?? []) {
-      const age = now - Date.parse(l.created_at);
+      const age = clock(l.is_demo) - Date.parse(l.created_at);
       if (age >= 72 * H) {
         await d.from("leads").update({ status: "cold" }).eq("id", l.id); c.cold++; continue;
       }
@@ -202,11 +219,11 @@ export async function runAutomations(origin: string) {
         type: "nudge", lead_id: l.id, to_email: email,
         subject: l.nudge_count === 0 ? "Your free consultation with our engineers" : "Still keen to talk about your project?",
         body: `Hi ${first(l.full_name)},\n\n${l.nudge_count === 0 ? "We noticed you haven't picked a time yet." : "Just a gentle reminder in case our last note got buried."} Your details are saved, so booking a free consultation takes under a minute:\n${origin}/book?t=${l.booking_token}${SIGN}`,
-      }, false);
+      }, l.is_demo);
       c.nudges++;
     }
   } finally {
-    const summary = `Expired ${c.expired}, deleted ${c.deleted}, completed ${c.completed}, flagged ${c.flagged}, released ${c.released}, nudges ${c.nudges}, cold ${c.cold}, reminders dropped ${c.cancelledReminders}, calendar retries ${c.calendarRetried} (${c.calendarFixed} fixed)`;
+    const summary = `Expired ${c.expired}, deleted ${c.deleted}, completed ${c.completed}, flagged ${c.flagged}, released ${c.released}, nudges ${c.nudges}, demo reminders ${c.demoReminders}, cold ${c.cold}, reminders dropped ${c.cancelledReminders}, calendar retries ${c.calendarRetried} (${c.calendarFixed} fixed)`;
     await d.from("settings").update({ automation_lock_until: null, automation_last_run_at: new Date().toISOString(), automation_last_summary: summary }).eq("id", 1);
   }
   return { skipped: false as const, counts: c };
