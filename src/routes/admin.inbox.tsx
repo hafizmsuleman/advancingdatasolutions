@@ -26,6 +26,7 @@ const SAMPLE_TEXT = `Hi, I'm Rachel from Meridian Freight (Houston). We're on Az
 const SOURCES = ["LinkedIn", "Email", "WhatsApp", "Form"] as const;
 const SRC_DB = { LinkedIn: "linkedin", Email: "email", WhatsApp: "whatsapp", Form: "form" } as const;
 const LINK = "{{BOOKING_LINK}}";
+const PENDING = "[booking link appears after you save the lead]";
 
 function InboxPage() {
   const analyzeFn = useServerFn(analyze);
@@ -47,7 +48,7 @@ function InboxPage() {
 
   const upd = <K extends keyof Extracted>(k: K, v: Extracted[K]) => setR((x) => (x ? { ...x, [k]: v } : x));
   const link = saved ? `${window.location.origin}/book?t=${saved.token}` : "";
-  const replyText = r ? r.reply.replace(LINK, saved ? link : "[booking link appears after you save the lead]") : "";
+  const replyText = r ? r.reply.replace(LINK, saved ? link : PENDING) : "";
 
   async function save() {
     if (!r || saving) return;
@@ -160,7 +161,7 @@ function InboxPage() {
                   </button>
                 </div>
                 <textarea aria-label="Reply draft" rows={9} value={replyText}
-                  onChange={(e) => upd("reply", saved ? e.target.value.replace(link, LINK) : e.target.value)}
+                  onChange={(e) => upd("reply", e.target.value.replace(saved ? link : PENDING, LINK))}
                   className="w-full rounded-lg border border-border bg-background p-3 text-sm leading-relaxed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
               </div>
               <button className={btnPrimary} disabled={!!saved || saving} onClick={save}>
