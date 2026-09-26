@@ -1,49 +1,40 @@
-// Sample (browser-only) confirmed bookings until Lovable Cloud is connected.
-export const MEETING_LINK = "https://meet.google.com/xyz";
-const KEY = "ads-sample-bookings";
+// Public booking view model, loaded only through the token-based get_public_booking function.
+import { supabase } from "@/integrations/supabase/client";
 
 export type SampleBooking = {
   token: string;
   code: string;
   name: string;
-  email: string;
   company: string;
   duration: 30 | 60;
   start: string; // ISO UTC
   timeZone: string;
   meetingLink: string;
+  status: string;
   attendanceConfirmedAt?: string | undefined;
   cancelledAt?: string | undefined;
-  cancelReason?: string | undefined;
-  rescheduledAt?: string | undefined;
   nda?: { name: string; title: string; signedAt: string } | undefined;
 };
 
-function rand(chars: string, n: number) {
-  const a = new Uint32Array(n);
-  crypto.getRandomValues(a);
-  return Array.from(a, (x) => chars[x % chars.length]).join("");
-}
-
-export function newToken() {
-  return rand("abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789", 32);
-}
-export function newCode() {
-  return `ADS-${rand("ABCDEFGHJKMNPQRSTUVWXYZ23456789", 4)}`;
-}
-
-function all(): Record<string, SampleBooking> {
-  try {
-    return JSON.parse(localStorage.getItem(KEY) ?? "{}");
-  } catch {
-    return {};
-  }
-}
-export function saveBooking(b: SampleBooking) {
-  localStorage.setItem(KEY, JSON.stringify({ ...all(), [b.token]: b }));
-}
-export function getBooking(token: string): SampleBooking | null {
-  return all()[token] ?? null;
+export async function fetchBooking(token: string): Promise<SampleBooking | null> {
+  const { data, error } = await supabase.rpc("get_public_booking", { p_token: token });
+  const r = data?.[0];
+  if (error || !r) return null;
+  const inactive = r.status === "cancelled" || r.status === "released";
+  return {
+    token: r.manage_token,
+    code: r.code,
+    name: r.full_name ?? "",
+    company: r.company ?? "",
+    duration: r.length_min as 30 | 60,
+    start: r.start_utc,
+    timeZone: r.client_tz,
+    meetingLink: r.meet_link ?? "",
+    status: r.status,
+    attendanceConfirmedAt: r.attendance_confirmed_at ?? undefined,
+    cancelledAt: inactive ? r.start_utc : undefined,
+    nda: r.nda_signed ? { name: r.nda_signer_name ?? "", title: r.nda_signer_title ?? "", signedAt: r.nda_signed_at ?? "" } : undefined,
+  };
 }
 
 function icsDate(ms: number) {
@@ -55,7 +46,7 @@ export function buildIcs(b: SampleBooking) {
   return [
     "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Advancing Data Solutions//Booking//EN", "METHOD:PUBLISH",
     "BEGIN:VEVENT",
-    `UID:${b.token}@book.advancingdatasolutions.com`,
+    `UID:${b.code}@book.advancingdatasolutions.com`,
     `DTSTAMP:${icsDate(Date.now())}`,
     `DTSTART:${icsDate(s)}`,
     `DTEND:${icsDate(e)}`,

@@ -5,7 +5,7 @@ import { AlertCircle, Mail } from "lucide-react";
 import { BookingProgress } from "@/components/booking-progress";
 import { cn } from "@/lib/utils";
 import { loadDraft, saveDraft, type BookingDraft } from "@/lib/booking-draft";
-import { MEETING_LINK, newCode, newToken, saveBooking } from "@/lib/sample-bookings";
+import { resendCode, verifyCode } from "@/lib/booking.functions";
 
 const TITLE = "Verify your email — Advancing Data Solutions";
 const DESC = "Confirm your email with a 6-digit code to secure your consultation.";
@@ -30,7 +30,7 @@ const RESEND_S = 60;
 const MAX_ATTEMPTS = 5;
 const MAX_RESENDS = 3;
 
-type Err = null | "wrong_code" | "expired" | "too_many_attempts" | "slot_taken";
+type Err = null | "wrong_code" | "expired" | "too_many_attempts" | "slot_taken" | "email_has_active_booking" | "server";
 
 function VerifyPage() {
   const navigate = useNavigate();
@@ -65,7 +65,7 @@ function VerifyPage() {
   }, [expired, error]);
 
   if (draft === undefined) return <main className="flex-1" />;
-  if (!draft?.email || !draft.slotStart) {
+  if (!draft?.email || !draft.slotStart || !draft.bookingId) {
     return (
       <main className="flex flex-1 items-center justify-center px-4 py-16">
         <div className="max-w-md rounded-xl border border-border bg-card p-8 text-center shadow-sm">
@@ -77,34 +77,34 @@ function VerifyPage() {
     );
   }
 
-  function submit(value: string) {
+  async function submit(value: string) {
     if (busy || locked || expired || value.length !== 6) return;
     setBusy(true);
     setNotice("");
-    setTimeout(() => {
-      setBusy(false);
-      if (value === "000000") {
-        setError("slot_taken");
-        saveDraft({ ...draft, slotStart: undefined });
-        setTimeout(() => navigate({ to: "/book/slot" }), 2500);
-        return;
-      }
-      if (value === "123456") {
-        const token = newToken();
-        saveBooking({
-          token, code: newCode(), name: draft!.name ?? "", email: draft!.email!, company: draft!.company ?? "",
-          duration: draft!.duration ?? 30, start: draft!.slotStart!,
-          timeZone: draft!.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone, meetingLink: MEETING_LINK,
-        });
-        navigate({ to: "/booked/$token", params: { token } });
-        return;
-      }
-      const n = attempts + 1;
-      setAttempts(n);
-      setError(n >= MAX_ATTEMPTS ? "too_many_attempts" : "wrong_code");
+    const r = await verifyCode({ data: { bookingId: draft!.bookingId!, code: value } }).catch(() => ({ result: "server" as const }));
+    setBusy(false);
+    if (r.result === "confirmed" && "token" in r && r.token) {
+      saveDraft({ ...draft, slotStart: undefined, bookingId: undefined });
+      navigate({ to: "/booked/$token", params: { token: r.token } });
+      return;
+    }
+    if (r.result === "slot_taken") {
+      setError("slot_taken");
+      saveDraft({ ...draft, slotStart: undefined, bookingId: undefined });
+      setTimeout(() => navigate({ to: "/book/slot" }), 2500);
+      return;
+    }
+    if (r.result === "wrong_code") {
+      const left = "attemptsLeft" in r && typeof r.attemptsLeft === "number" ? r.attemptsLeft : MAX_ATTEMPTS - attempts - 1;
+      setAttempts(MAX_ATTEMPTS - left);
+      setError("wrong_code");
       setCode("");
       inputRef.current?.focus();
-    }, 400);
+      return;
+    }
+    if (r.result === "too_many_attempts") setAttempts(MAX_ATTEMPTS);
+    setError(r.result as Err);
+    setCode("");
   }
 
   function onChange(v: string) {
@@ -114,8 +114,14 @@ function VerifyPage() {
     if (digits.length === 6) submit(digits);
   }
 
-  function resend() {
+  async function resend() {
     if (resendIn > 0 || resends >= MAX_RESENDS || error === "slot_taken") return;
+    const r = await resendCode({ data: { bookingId: draft!.bookingId! } }).catch(() => ({ error: "server" as const }));
+    if ("error" in r) {
+      setNotice("");
+      setError(r.error === "expired" ? "expired" : "server");
+      return;
+    }
     const t = Date.now();
     setResends(resends + 1);
     setSentAt(t);
@@ -132,6 +138,8 @@ function VerifyPage() {
     expired: "This code has expired. Please request a new one.",
     too_many_attempts: "Too many incorrect attempts. Please request a new code.",
     slot_taken: "That time was just booked by someone else. Please choose another slot.",
+    email_has_active_booking: "Your email is verified, but it already has an upcoming consultation. Use the links in your confirmation email to manage it.",
+    server: "Something went wrong on our end. Please try again in a moment.",
   };
   const mm = String(Math.floor(remaining / 60)).padStart(2, "0");
   const ss = String(remaining % 60).padStart(2, "0");

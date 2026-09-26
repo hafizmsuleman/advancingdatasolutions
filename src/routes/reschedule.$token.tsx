@@ -4,7 +4,8 @@ import { CheckCircle2 } from "lucide-react";
 
 import { BookingGate, BookingSummary, Card } from "@/components/booking-gate";
 import { SlotPicker } from "@/components/slot-picker";
-import { saveBooking, type SampleBooking } from "@/lib/sample-bookings";
+import { fetchBooking, type SampleBooking } from "@/lib/sample-bookings";
+import { rescheduleBooking } from "@/lib/booking.functions";
 import type { Slot } from "@/lib/slots";
 
 const TITLE = "Reschedule — Advancing Data Solutions";
@@ -34,12 +35,19 @@ function Reschedule({ b, setB, token }: { b: SampleBooking; setB: (b: SampleBook
   const [tz, setTz] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
   const [sel, setSel] = useState<Slot | null>(null);
   const [done, setDone] = useState(false);
+  const [err, setErr] = useState("");
 
-  function confirm() {
+  async function confirm() {
     if (!sel) return;
-    const nb = { ...b, start: new Date(sel.start).toISOString(), timeZone: tz, rescheduledAt: new Date().toISOString(), attendanceConfirmedAt: undefined };
-    saveBooking(nb);
-    setB(nb);
+    setErr("");
+    const r = await rescheduleBooking({ data: { token, slotStart: new Date(sel.start).toISOString(), timeZone: tz } });
+    if ("error" in r) {
+      setSel(null);
+      setErr(r.error === "slot_taken" ? "That time was just booked by someone else. Please choose another slot." : "We couldn't move this booking. Please try again.");
+      return;
+    }
+    const nb = await fetchBooking(token);
+    if (nb) setB(nb);
     setDone(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -68,7 +76,8 @@ function Reschedule({ b, setB, token }: { b: SampleBooking; setB: (b: SampleBook
       <p className="mt-2 text-muted-foreground">Pick a new time. Your session length stays the same.</p>
       <div className="mt-6"><BookingSummary b={b} label="Current time" /></div>
       <h2 className="mt-8 mb-4 text-lg font-semibold tracking-tight">Choose a new time</h2>
-      <SlotPicker duration={b.duration} tz={tz} onTzChange={setTz} selected={sel} onSelect={setSel} excludeStart={Date.parse(b.start)} />
+      <SlotPicker duration={b.duration} tz={tz} onTzChange={setTz} selected={sel} onSelect={setSel} excludeStart={Date.parse(b.start)} excludeToken={token} />
+      {err && <p role="alert" className="mt-4 text-sm text-warning">{err}</p>}
       {sel && <p className="mt-6 text-sm tnums" aria-live="polite">New time: <strong className="font-medium">{fmt(sel.start)}</strong></p>}
       <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row">
         <Link to="/booked/$token" params={{ token }} className="inline-flex min-h-11 items-center justify-center rounded-md border border-border px-6 text-sm font-medium hover:bg-muted">Keep current time</Link>

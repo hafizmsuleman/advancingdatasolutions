@@ -39,7 +39,7 @@ export const projectSchema = z.object({
   consent: z.literal(true, { message: "Please accept the privacy policy to continue." }),
 });
 
-export type BookingDraft = z.infer<typeof contactSchema> & z.infer<typeof projectSchema> & { duration?: 30 | 60; slotStart?: string | undefined; timeZone?: string | undefined };
+export type BookingDraft = z.infer<typeof contactSchema> & z.infer<typeof projectSchema> & { duration?: 30 | 60; slotStart?: string | undefined; timeZone?: string | undefined; leadId?: string | undefined; leadToken?: string | undefined; bookingId?: string | undefined };
 
 export function routeDuration(d: Pick<BookingDraft, "budget" | "timeline">): 30 | 60 {
   const bigBudget = d.budget === "$5k–20k" || d.budget === "$20k–50k" || d.budget === "Over $50k";

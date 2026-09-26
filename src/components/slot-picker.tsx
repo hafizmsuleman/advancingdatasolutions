@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Globe } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { dateKey, generateSlots, partsIn, sampleBookings, visitorDays, type Slot } from "@/lib/slots";
+import { dateKey, generateSlots, partsIn, visitorDays, type Slot } from "@/lib/slots";
+import { useBusy } from "@/lib/use-busy";
 
 function allZones(current: string): string[] {
   const fn = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf;
@@ -18,15 +19,17 @@ export function SlotPicker(props: {
   selected: Slot | null;
   onSelect: (s: Slot | null) => void;
   excludeStart?: number | undefined;
+  excludeToken?: string | undefined;
 }) {
-  const { duration, tz, onTzChange, selected, onSelect, excludeStart } = props;
+  const { duration, tz, onTzChange, selected, onSelect, excludeStart, excludeToken } = props;
+  const { busy } = useBusy(excludeToken);
   const [now] = useState(() => Date.now());
   const [editingTz, setEditingTz] = useState(false);
   const [day, setDay] = useState("");
 
   const slots = useMemo(
-    () => generateSlots({ now, duration, visitorTz: tz, busy: sampleBookings(now) }).filter((s) => s.start !== excludeStart),
-    [now, duration, tz, excludeStart],
+    () => generateSlots({ now, duration, visitorTz: tz, busy }).filter((s) => s.start !== excludeStart),
+    [now, duration, tz, excludeStart, busy],
   );
   const days = useMemo(() => visitorDays(now, tz), [now, tz]);
   const byDay = useMemo(() => {

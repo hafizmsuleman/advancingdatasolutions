@@ -1,5 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useInvalidateAdmin } from "@/lib/admin-data";
+import { BUDGET_LABEL, BUDGET_TO_DB } from "@/lib/enums";
 import { toast } from "sonner";
 import { X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -49,10 +52,67 @@ function SettingsPage() {
   const [newBlock, setNewBlock] = useState("");
   const [demo, setDemo] = useState(false);
   const [offset, setOffset] = useState(0);
+  const invalidate = useInvalidateAdmin();
+  const WD = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+  const hhmm = (t: string) => (t.startsWith("24") ? "24:00" : t.slice(0, 5));
+
+  useEffect(() => {
+    (async () => {
+      const [{ data: st }, { data: win }, { data: bl }] = await Promise.all([
+        supabase.from("settings").select("*").eq("id", 1).single(),
+        supabase.from("availability_windows").select("*"),
+        supabase.from("blocked_senders").select("value").order("created_at"),
+      ]);
+      if (st) {
+        setN({ buffer: st.buffer_min, cap: st.daily_cap, notice: st.min_notice_hours, flag: st.attendance_flag_hours, release: st.attendance_release_hours });
+        setThreshold(BUDGET_LABEL[st.budget_threshold]);
+        setLink(st.fallback_meeting_link ?? "");
+        setDemo(st.demo_mode);
+        setOffset(Math.round(st.virtual_clock_offset_min / 60));
+      }
+      if (win) setDays(DAYS.map((d, i) => {
+        const w = win.find((x) => x.weekday === WD[i]);
+        return { d, on: !!w?.active, from: w ? hhmm(w.start_time) : "15:00", to: w ? hhmm(w.end_time) : "24:00" };
+      }));
+      if (bl) setBlocked(bl.map((b) => b.value));
+    })();
+  }, []);
+
+  async function saveAll() {
+    const { error } = await supabase.from("settings").update({
+      buffer_min: n.buffer, daily_cap: n.cap, min_notice_hours: n.notice, attendance_flag_hours: n.flag,
+      attendance_release_hours: n.release, budget_threshold: BUDGET_TO_DB[threshold]!, fallback_meeting_link: link.trim() || null,
+    }).eq("id", 1);
+    if (error) { toast.error("Couldn't save settings"); return; }
+    await supabase.from("availability_windows").delete().in("weekday", [...WD]);
+    const rows = days.map((x, i) => ({ weekday: WD[i]!, start_time: x.from, end_time: x.to, active: x.on })).filter((x) => x.active);
+    const { error: e2 } = await supabase.from("availability_windows").insert(rows);
+    if (e2) { toast.error("Couldn't save availability. Check the times (use 24:00 for midnight)."); return; }
+    toast.success("Settings saved");
+    invalidate();
+  }
+  async function addBlocked(v: string) {
+    const { error } = await supabase.from("blocked_senders").insert({ value: v });
+    if (error) toast.error("Couldn't add"); else setBlocked((b) => [...b, v]);
+  }
+  async function removeBlocked(v: string) {
+    const { error } = await supabase.from("blocked_senders").delete().eq("value", v);
+    if (error) toast.error("Couldn't remove"); else setBlocked((b) => b.filter((x) => x !== v));
+  }
+  async function setDemoMode(on: boolean) {
+    const { error } = await supabase.from("settings").update({ demo_mode: on }).eq("id", 1);
+    if (error) { toast.error("Couldn't change demo mode"); return; }
+    setDemo(on); invalidate();
+  }
+  async function setClock(h: number) {
+    const { error } = await supabase.from("settings").update({ virtual_clock_offset_min: h * 60 }).eq("id", 1);
+    if (error) { toast.error("Couldn't change simulated time"); return; }
+    setOffset(h);
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
-      <PageIntro title="Settings" actions={<button className={btnPrimary} onClick={() => toast.success("Settings saved (sample)")}>Save changes</button>}>
+      <PageIntro title="Settings" actions={<button className={btnPrimary} onClick={saveAll}>Save changes</button>}>
         Team time zone: Asia/Karachi (never shown to clients).
       </PageIntro>
 
@@ -102,11 +162,11 @@ function SettingsPage() {
           {blocked.map((b) => (
             <span key={b} className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs">
               {b}
-              <button aria-label={`Remove ${b}`} onClick={() => setBlocked(blocked.filter((x) => x !== b))} className="text-muted-foreground hover:text-foreground"><X className="h-3 w-3" /></button>
+              <button aria-label={`Remove ${b}`} onClick={() => removeBlocked(b)} className="text-muted-foreground hover:text-foreground"><X className="h-3 w-3" /></button>
             </span>
           ))}
         </div>
-        <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); const v = newBlock.trim().toLowerCase(); if (v && !blocked.includes(v)) setBlocked([...blocked, v]); setNewBlock(""); }}>
+        <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); const v = newBlock.trim().toLowerCase(); if (v && !blocked.includes(v)) addBlocked(v); setNewBlock(""); }}>
           <label htmlFor="nb" className="sr-only">Add email or domain</label>
           <input id="nb" className={field + " flex-1"} placeholder="name@company.com or domain.com" value={newBlock} onChange={(e) => setNewBlock(e.target.value)} />
           <button className={btn + " h-9"} type="submit">Add</button>
@@ -115,16 +175,16 @@ function SettingsPage() {
 
       <Section title="Demo mode" desc="Shows sample bookings and leads. Demo emails go only to the admin; no calendar events are created.">
         <label className="flex items-center gap-2 text-sm">
-          <Switch checked={demo} onCheckedChange={setDemo} aria-label="Demo mode" />
+          <Switch checked={demo} onCheckedChange={setDemoMode} aria-label="Demo mode" />
           {demo ? "Demo mode is on" : "Demo mode is off"}
         </label>
         <div className="mt-4">
           <div className="text-xs text-muted-foreground">Simulate time (demo bookings only)</div>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
             {[1, 12, 24].map((h) => (
-              <button key={h} className={btn + " h-9"} disabled={!demo} onClick={() => setOffset(offset + h)}>+{h}h</button>
+              <button key={h} className={btn + " h-9"} disabled={!demo} onClick={() => setClock(offset + h)}>+{h}h</button>
             ))}
-            <button className={btn + " h-9"} disabled={!demo || offset === 0} onClick={() => setOffset(0)}>Reset</button>
+            <button className={btn + " h-9"} disabled={!demo || offset === 0} onClick={() => setClock(0)}>Reset</button>
             <span className="text-sm tabular-nums text-muted-foreground">Offset: +{offset}h</span>
           </div>
         </div>
