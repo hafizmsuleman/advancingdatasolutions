@@ -1,0 +1,265 @@
+// Public backend functions for the booking flow. They run on the server with the
+// service role; the browser never touches tables or the privileged SQL functions.
+import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
+import { z } from "zod";
+import { AREAS, BUDGETS, PLATFORMS, TIMELINES } from "./booking-draft";
+import { BUDGET_TO_DB, NEED_TO_DB, PLATFORM_TO_DB } from "./enums";
+import { generateSlots, type Busy } from "./slots";
+
+const DISPOSABLE = ["mailinator.com", "guerrillamail.com", "10minutemail.com", "tempmail.com", "temp-mail.org", "yopmail.com", "trashmail.com", "sharklasers.com", "getnada.com", "dispostable.com", "maildrop.cc", "throwawaymail.com"];
+const stripLinks = (s: string) => s.replace(/(https?:\/\/|www\.)\S+/gi, "").trim();
+
+async function admin() {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return supabaseAdmin;
+}
+
+async function visitorHash() {
+  const req = getRequest();
+  const ip = req.headers.get("cf-connecting-ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
+  const ua = req.headers.get("user-agent") ?? "";
+  const salt = process.env["SUPABASE_SERVICE_ROLE_KEY"] ?? "";
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${ip}|${ua}|${salt}`));
+  return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function sixDigits() {
+  const a = new Uint32Array(1);
+  crypto.getRandomValues(a);
+  return String(a[0]! % 1_000_000).padStart(6, "0");
+}
+
+async function isBlocked(db: Awaited<ReturnType<typeof admin>>, email: string) {
+  const e = email.toLowerCase();
+  const domain = e.split("@")[1] ?? "";
+  if (DISPOSABLE.includes(domain)) return true;
+  const { data } = await db.from("blocked_senders").select("id").in("value", [e, domain]).limit(1);
+  return !!data?.length;
+}
+
+/** Busy intervals for the slot picker (no client data leaves the server). */
+async function loadBusy(db: Awaited<ReturnType<typeof admin>>, excludeToken?: string): Promise<Busy[]> {
+  const { data: s } = await db.from("settings").select("demo_mode").eq("id", 1).single();
+  let q = db.from("bookings").select("start_utc,end_utc,manage_token,is_demo")
+    .in("status", ["confirmed", "attendance_confirmed"])
+    .gte("end_utc", new Date(Date.now() - 86400_000).toISOString());
+  if (!s?.demo_mode) q = q.eq("is_demo", false);
+  const { data } = await q;
+  return (data ?? []).filter((b) => b.manage_token !== excludeToken)
+    .map((b) => ({ start: Date.parse(b.start_utc), end: Date.parse(b.end_utc) }));
+}
+
+export const getBusy = createServerFn({ method: "GET" })
+  .inputValidator((d: { excludeToken?: string } | undefined) => z.object({ excludeToken: z.string().max(64).optional() }).parse(d ?? {}))
+  .handler(async ({ data }) => loadBusy(await admin(), data.excludeToken));
+
+async function queueMessage(db: Awaited<ReturnType<typeof admin>>, m: {
+  type: "verification_code" | "confirmation" | "admin_new_booking" | "reschedule_notice" | "cancel_notice";
+  to: string; subject: string; body: string; bookingId?: string; leadId?: string; minutes?: number;
+}) {
+  await db.from("messages").insert({
+    type: m.type, to_email: m.to, subject: m.subject, body: m.body,
+    booking_id: m.bookingId ?? null, lead_id: m.leadId ?? null, minutes_saved: m.minutes ?? 5,
+  });
+}
+
+// ---------- Lead creation ----------
+const leadSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  email: z.string().trim().email().max(254),
+  company: z.string().trim().min(1).max(120),
+  role: z.string().trim().min(1).max(100),
+  area: z.enum(AREAS.map((a) => a.id) as ["data", "ai", "web"]),
+  platform: z.enum(PLATFORMS),
+  need: z.string().refine((v) => v in NEED_TO_DB),
+  timeline: z.enum(TIMELINES),
+  budget: z.enum(BUDGETS),
+  notes: z.string().max(1000).default(""),
+  timeZone: z.string().max(64).optional(),
+  leadToken: z.string().max(64).optional(),
+});
+
+export const submitLead = createServerFn({ method: "POST" })
+  .inputValidator((d: z.input<typeof leadSchema>) => leadSchema.parse(d))
+  .handler(async ({ data }) => {
+    const db = await admin();
+    const email = data.email.toLowerCase();
+    if (await isBlocked(db, email)) return { error: "blocked" as const };
+    const vh = await visitorHash();
+    const since = new Date(Date.now() - 86400_000).toISOString();
+    const { count } = await db.from("leads").select("id", { count: "exact", head: true }).eq("visitor_hash", vh).gte("created_at", since);
+    if ((count ?? 0) >= 5 && !data.leadToken) return { error: "rate_limited" as const };
+
+    const row = {
+      full_name: stripLinks(data.name), email, company: stripLinks(data.company), role: stripLinks(data.role),
+      project_area: data.area, platform: PLATFORM_TO_DB[data.platform]!, need: NEED_TO_DB[data.need]!,
+      timeline: data.timeline, budget_range: BUDGET_TO_DB[data.budget]!, notes: stripLinks(data.notes).slice(0, 1000) || null,
+      client_tz: data.timeZone ?? null, consent_at: new Date().toISOString(), visitor_hash: vh,
+    };
+    if (data.leadToken) {
+      const { data: l } = await db.from("leads").update(row).eq("booking_token", data.leadToken)
+        .not("status", "in", "(booked,cold)").select("id").maybeSingle();
+      if (l) return { leadId: l.id };
+    }
+    const { data: l, error } = await db.from("leads").insert({ ...row, source: "form" }).select("id").single();
+    if (error) { console.error(error); return { error: "server" as const }; }
+    return { leadId: l.id };
+  });
+
+// ---------- Booking request + code email ----------
+export const requestBooking = createServerFn({ method: "POST" })
+  .inputValidator((d: { leadId: string; duration: 30 | 60; slotStart: string; timeZone: string }) =>
+    z.object({ leadId: z.string().uuid(), duration: z.union([z.literal(30), z.literal(60)]), slotStart: z.string().datetime(), timeZone: z.string().min(1).max(64) }).parse(d))
+  .handler(async ({ data }) => {
+    const db = await admin();
+    const vh = await visitorHash();
+    const { data: lead } = await db.from("leads").select("id,email,full_name,status").eq("id", data.leadId).single();
+    if (!lead?.email) return { error: "server" as const };
+    if (await isBlocked(db, lead.email)) return { error: "blocked" as const };
+
+    // Server-side slot re-check (availability, notice, horizon, local hours, cap, busy)
+    const start = Date.parse(data.slotStart);
+    const valid = generateSlots({ now: Date.now(), duration: data.duration, visitorTz: data.timeZone, busy: await loadBusy(db) })
+      .some((s) => s.start === start);
+    if (!valid) return { error: "slot_taken" as const };
+
+    // Limits: 5 requests/visitor/day, 3 code emails/address/hour, 10/visitor/hour
+    const day = new Date(Date.now() - 86400_000).toISOString();
+    const hour = new Date(Date.now() - 3600_000).toISOString();
+    const [{ count: perDay }, { count: perAddr }, { count: perVisitor }] = await Promise.all([
+      db.from("bookings").select("id", { count: "exact", head: true }).eq("visitor_hash", vh).gte("created_at", day),
+      db.from("email_verifications").select("id", { count: "exact", head: true }).eq("email", lead.email).gte("created_at", hour),
+      db.from("email_verifications").select("id", { count: "exact", head: true }).eq("visitor_hash", vh).gte("created_at", hour),
+    ]);
+    if ((perDay ?? 0) >= 5 || (perAddr ?? 0) >= 3 || (perVisitor ?? 0) >= 10) return { error: "rate_limited" as const };
+
+    const { data: bookingId, error } = await db.rpc("create_booking_request", {
+      p_lead_id: lead.id, p_email: lead.email, p_session: "free_consultation", p_length: data.duration,
+      p_start: new Date(start).toISOString(), p_client_tz: data.timeZone, p_visitor: vh,
+    });
+    if (error) {
+      if (error.message.includes("email_has_active_booking")) return { error: "email_has_active_booking" as const };
+      if (error.message.includes("slot_taken")) return { error: "slot_taken" as const };
+      console.error(error);
+      return { error: "server" as const };
+    }
+    await sendCode(db, bookingId as string, lead.email, lead.full_name ?? "", lead.id, vh, 0);
+    await db.from("leads").update({ client_tz: data.timeZone }).eq("id", lead.id);
+    return { bookingId: bookingId as string, email: lead.email };
+  });
+
+async function sendCode(db: Awaited<ReturnType<typeof admin>>, bookingId: string, email: string, name: string, leadId: string, vh: string, resendCount: number) {
+  const code = sixDigits();
+  await db.rpc("create_verification", { p_booking_id: bookingId, p_email: email, p_code: code, p_visitor: vh });
+  if (resendCount > 0) {
+    const { data: v } = await db.from("email_verifications").select("id").eq("booking_id", bookingId).order("created_at", { ascending: false }).limit(1).single();
+    if (v) await db.from("email_verifications").update({ resend_count: resendCount }).eq("id", v.id);
+  }
+  const first = name.split(" ")[0] || "there";
+  await queueMessage(db, {
+    type: "verification_code", to: email, bookingId, leadId,
+    subject: "Your verification code",
+    body: `Hi ${first},\n\nYour Advancing Data Solutions verification code is ${code}. It expires in 10 minutes.\n\nIf you didn't request this, you can ignore this email.`,
+  });
+}
+
+export const resendCode = createServerFn({ method: "POST" })
+  .inputValidator((d: { bookingId: string }) => z.object({ bookingId: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => {
+    const db = await admin();
+    const vh = await visitorHash();
+    const { data: b } = await db.from("bookings").select("id,email,lead_id,status,leads(full_name)").eq("id", data.bookingId).single();
+    if (!b || b.status !== "pending_verification") return { error: "expired" as const };
+    const { data: last } = await db.from("email_verifications").select("resend_count,last_sent_at").eq("booking_id", b.id).order("created_at", { ascending: false }).limit(1).single();
+    if (!last) return { error: "expired" as const };
+    if (last.resend_count >= 3) return { error: "max_resends" as const };
+    if (Date.now() - Date.parse(last.last_sent_at) < 60_000) return { error: "too_soon" as const };
+    const hour = new Date(Date.now() - 3600_000).toISOString();
+    const { count } = await db.from("email_verifications").select("id", { count: "exact", head: true }).eq("email", b.email).gte("created_at", hour);
+    if ((count ?? 0) >= 3) return { error: "rate_limited" as const };
+    await db.from("bookings").update({ verify_expires_at: new Date(Date.now() + 600_000).toISOString() }).eq("id", b.id);
+    const name = (b.leads as { full_name: string | null } | null)?.full_name ?? "";
+    await sendCode(db, b.id, b.email, name, b.lead_id, vh, last.resend_count + 1);
+    return { ok: true as const };
+  });
+
+// ---------- Confirmation ----------
+export const verifyCode = createServerFn({ method: "POST" })
+  .inputValidator((d: { bookingId: string; code: string }) => z.object({ bookingId: z.string().uuid(), code: z.string().regex(/^\d{6}$/) }).parse(d))
+  .handler(async ({ data }) => {
+    const db = await admin();
+    const { data: result, error } = await db.rpc("confirm_booking", { p_booking_id: data.bookingId, p_code: data.code });
+    if (error) { console.error(error); return { result: "server" as const }; }
+    const r = result as "confirmed" | "wrong_code" | "expired" | "too_many_attempts" | "slot_taken" | "email_has_active_booking";
+    if (r !== "confirmed") {
+      if (r === "wrong_code") {
+        const { data: v } = await db.from("email_verifications").select("attempts").eq("booking_id", data.bookingId).order("created_at", { ascending: false }).limit(1).single();
+        return { result: r, attemptsLeft: 5 - (v?.attempts ?? 0) };
+      }
+      return { result: r };
+    }
+    const { data: b } = await db.from("bookings").select("id,manage_token,code,email,start_utc,length_min,client_tz,lead_id,leads(full_name,company)").eq("id", data.bookingId).single();
+    if (b) {
+      const lead = b.leads as { full_name: string | null; company: string | null } | null;
+      const when = new Intl.DateTimeFormat("en-GB", { timeZone: b.client_tz, dateStyle: "full", timeStyle: "short" }).format(Date.parse(b.start_utc));
+      const { data: s } = await db.from("settings").select("fallback_meeting_link").eq("id", 1).single();
+      await queueMessage(db, {
+        type: "confirmation", to: b.email, bookingId: b.id, leadId: b.lead_id, minutes: 10,
+        subject: `You're booked: Free Consultation (${b.length_min} min)`,
+        body: `Hi ${(lead?.full_name ?? "").split(" ")[0] || "there"},\n\nThanks for booking a free ${b.length_min}-minute consultation with our engineers. Your call is on ${when} (your time).\n\nMeeting link: ${s?.fallback_meeting_link ?? ""}\nReference: ${b.code}\n\nSpeak soon,\nAdvancing Data Solutions`,
+      });
+      await queueMessage(db, {
+        type: "admin_new_booking", to: "contact@advancingdatasolutions.com", bookingId: b.id, leadId: b.lead_id,
+        subject: `New booking: ${lead?.company ?? b.email} (${b.length_min} min)`,
+        body: `${lead?.full_name ?? ""} from ${lead?.company ?? ""} booked ${b.code} for ${new Date(b.start_utc).toISOString()}.`,
+      });
+      return { result: r, token: b.manage_token };
+    }
+    return { result: r };
+  });
+
+// ---------- Reschedule / cancel (token-based) ----------
+export const rescheduleBooking = createServerFn({ method: "POST" })
+  .inputValidator((d: { token: string; slotStart: string; timeZone: string }) =>
+    z.object({ token: z.string().min(16).max(64), slotStart: z.string().datetime(), timeZone: z.string().min(1).max(64) }).parse(d))
+  .handler(async ({ data }) => {
+    const db = await admin();
+    const { data: b } = await db.from("bookings").select("id,email,length_min,start_utc,lead_id,code")
+      .eq("manage_token", data.token).in("status", ["confirmed", "attendance_confirmed"]).maybeSingle();
+    if (!b || Date.parse(b.start_utc) < Date.now()) return { error: "not_found" as const };
+    const start = Date.parse(data.slotStart);
+    const duration = b.length_min as 30 | 60;
+    const valid = generateSlots({ now: Date.now(), duration, visitorTz: data.timeZone, busy: await loadBusy(db, data.token) })
+      .some((s) => s.start === start);
+    if (!valid) return { error: "slot_taken" as const };
+    const { data: s } = await db.from("settings").select("buffer_min").eq("id", 1).single();
+    const end = start + duration * 60000;
+    const { error } = await db.from("bookings").update({
+      start_utc: new Date(start).toISOString(), end_utc: new Date(end).toISOString(),
+      blocked_until_utc: new Date(end + (s?.buffer_min ?? 15) * 60000).toISOString(),
+      client_tz: data.timeZone, status: "confirmed", attendance_confirmed_at: null,
+    }).eq("id", b.id);
+    if (error) return { error: "slot_taken" as const };
+    await queueMessage(db, {
+      type: "reschedule_notice", to: b.email, bookingId: b.id, leadId: b.lead_id,
+      subject: "Your consultation has moved",
+      body: `Your consultation ${b.code} is now on ${new Intl.DateTimeFormat("en-GB", { timeZone: data.timeZone, dateStyle: "full", timeStyle: "short" }).format(start)} (your time). The meeting link stays the same.\n\nAdvancing Data Solutions`,
+    });
+    return { ok: true as const };
+  });
+
+export const cancelBooking = createServerFn({ method: "POST" })
+  .inputValidator((d: { token: string; reason: string }) => z.object({ token: z.string().min(16).max(64), reason: z.string().max(500) }).parse(d))
+  .handler(async ({ data }) => {
+    const db = await admin();
+    const { data: r } = await db.rpc("cancel_booking_by_token", { p_token: data.token, p_reason: stripLinks(data.reason).slice(0, 300) });
+    if (r !== "cancelled") return { error: "not_found" as const };
+    const { data: b } = await db.from("bookings").select("id,email,code,lead_id").eq("manage_token", data.token).single();
+    if (b) await queueMessage(db, {
+      type: "cancel_notice", to: b.email, bookingId: b.id, leadId: b.lead_id,
+      subject: "Your consultation has been cancelled",
+      body: `Your consultation ${b.code} has been cancelled and the time released. You're welcome to book a new time whenever suits you.\n\nAdvancing Data Solutions`,
+    });
+    return { ok: true as const };
+  });

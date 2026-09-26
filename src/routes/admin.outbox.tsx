@@ -3,8 +3,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { RotateCw, Clock, CheckCircle2, XCircle, Ban } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Panel, Pill, PageIntro, DemoNote, btn } from "@/components/admin-ui";
-import { SAMPLE_OUTBOX, TEAM_TZ, fmtIn, type EmailStatus, type OutboxEmail } from "@/lib/admin-sample";
+import { Panel, Pill, PageIntro, btn } from "@/components/admin-ui";
+import { useAdminOutbox, useInvalidateAdmin } from "@/lib/admin-data";
+import { supabase } from "@/integrations/supabase/client";
+import { TEAM_TZ, fmtIn, type EmailStatus, type OutboxEmail } from "@/lib/admin-sample";
 
 export const Route = createFileRoute("/admin/outbox")({
   head: () => ({
@@ -25,12 +27,14 @@ const STATUS: Record<EmailStatus, { label: string; tone: "success" | "info" | "e
 };
 
 function Outbox() {
-  const [rows, setRows] = useState(SAMPLE_OUTBOX);
+  const { data: rows = [] } = useAdminOutbox();
+  const invalidate = useInvalidateAdmin();
   const [open, setOpen] = useState<OutboxEmail | null>(null);
   const sorted = [...rows].sort((a, b) => b.at.localeCompare(a.at));
   const retry = (id: string) => {
-    setRows((r) => r.map((e) => (e.id === id ? { ...e, status: "sent" } : e)));
-    toast.success("Email re-sent");
+    supabase.from("messages").update({ status: "scheduled", error: null, scheduled_utc: new Date().toISOString() }).eq("id", id).then(({ error }) => {
+      if (error) toast.error("Couldn't retry this email"); else { toast.success("Email queued to send again"); invalidate(); }
+    });
   };
   return (
     <div className="mx-auto max-w-4xl">
@@ -59,7 +63,6 @@ function Outbox() {
           );
         })}
       </Panel>
-      <DemoNote />
       <Sheet open={!!open} onOpenChange={(o) => !o && setOpen(null)}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
           {open && (

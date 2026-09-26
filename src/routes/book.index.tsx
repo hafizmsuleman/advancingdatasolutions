@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { supabase } from "@/integrations/supabase/client";
+import { submitLead } from "@/lib/booking.functions";
+import { BUDGET_LABEL, NEED_LABEL, PLATFORM_LABEL } from "@/lib/enums";
 
 import { BookingProgress } from "@/components/booking-progress";
 import { Input } from "@/components/ui/input";
@@ -26,6 +29,7 @@ export const Route = createFileRoute("/book/")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
+  validateSearch: (s: Record<string, unknown>) => (typeof s["t"] === "string" && s["t"].length <= 64 ? { t: s["t"] } : {}) as { t?: string },
   component: BookPage,
 });
 
@@ -39,11 +43,28 @@ function BookPage() {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<Form>({ name: "", email: "", company: "", role: "", notes: "", need: "", consent: false });
   const [errors, setErrors] = useState<Errors>({});
+  const [sending, setSending] = useState(false);
+  const [serverError, setServerError] = useState("");
+  const { t } = Route.useSearch();
 
   useEffect(() => {
     const d = loadDraft();
     if (d) setForm((f) => ({ ...f, ...d, consent: false }));
-  }, []);
+    if (!t) return;
+    supabase.rpc("get_lead_prefill", { p_booking_token: t }).then(({ data }) => {
+      const l = data?.[0];
+      if (!l) return;
+      setForm((f) => ({
+        ...f,
+        leadToken: t,
+        name: l.full_name ?? f.name, email: l.email ?? f.email, company: l.company ?? f.company, role: l.role ?? f.role,
+        ...(l.project_area ? { area: l.project_area } : {}),
+        ...(l.platform ? { platform: PLATFORM_LABEL[l.platform] as BookingDraft["platform"] } : {}),
+        ...(l.need ? { need: NEED_LABEL[l.need] } : {}),
+        ...(l.budget_range ? { budget: BUDGET_LABEL[l.budget_range] as BookingDraft["budget"] } : {}),
+      }));
+    });
+  }, [t]);
 
   function set<K extends keyof Form>(k: K, v: Form[K]) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -68,11 +89,26 @@ function BookPage() {
     window.scrollTo({ top: 0 });
   }
 
-  function submit() {
+  async function submit() {
     const r = projectSchema.safeParse(form);
     if (!r.success) return collect(r);
+    if (sending) return;
     const data = { ...contactSchema.parse(form), ...r.data };
-    saveDraft({ ...data, duration: routeDuration(data) });
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    setSending(true);
+    setServerError("");
+    const res = await submitLead({ data: { ...data, timeZone, ...(form.leadToken ? { leadToken: form.leadToken } : {}) } })
+      .catch(() => ({ error: "server" as const }));
+    setSending(false);
+    if ("error" in res) {
+      setServerError(
+        res.error === "blocked" ? "We can't accept bookings from this email address. Please use your work email."
+        : res.error === "rate_limited" ? "Too many attempts today. Please try again tomorrow or email contact@advancingdatasolutions.com."
+        : "Something went wrong on our end. Please try again.",
+      );
+      return;
+    }
+    saveDraft({ ...data, duration: routeDuration(data), leadId: res.leadId, leadToken: form.leadToken });
     navigate({ to: "/book/session" });
   }
 
@@ -139,9 +175,10 @@ function BookPage() {
                   </label>
                   <FieldError id="consent" msg={errors.consent} />
                 </div>
+                {serverError && <p role="alert" className="text-sm text-destructive">{serverError}</p>}
                 <div className="flex flex-col-reverse gap-3 sm:flex-row">
                   <button type="button" onClick={() => setStep(0)} className="min-h-11 rounded-md border border-border px-6 text-sm font-medium hover:bg-muted">Back</button>
-                  <PrimaryButton>See my session</PrimaryButton>
+                  <PrimaryButton>{sending ? "Saving…" : "See my session"}</PrimaryButton>
                 </div>
               </>
             )}

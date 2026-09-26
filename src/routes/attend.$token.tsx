@@ -3,7 +3,8 @@ import { CheckCircle2 } from "lucide-react";
 
 import { BookingGate, BookingSummary, Card } from "@/components/booking-gate";
 import { StatusBadge } from "@/components/status-badge";
-import { saveBooking } from "@/lib/sample-bookings";
+import { fetchBooking } from "@/lib/sample-bookings";
+import { supabase } from "@/integrations/supabase/client";
 
 const TITLE = "Confirm attendance — Advancing Data Solutions";
 const DESC = "Confirm you'll attend your free consultation with our engineers.";
@@ -44,7 +45,7 @@ function AttendPage() {
           )}
           <div className="mt-6"><BookingSummary b={b} /></div>
           {!b.attendanceConfirmedAt && (
-            <button type="button" onClick={() => { const nb = { ...b, attendanceConfirmedAt: new Date().toISOString() }; saveBooking(nb); setB(nb); }}
+            <button type="button" onClick={async () => { await supabase.rpc("confirm_attendance", { p_token: token }); const nb = await fetchBooking(token); if (nb) setB(nb); }}
               className="mt-6 min-h-11 w-full rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary-hover">
               Confirm my attendance
             </button>

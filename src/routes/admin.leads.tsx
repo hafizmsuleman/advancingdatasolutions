@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
 import { toast } from "sonner";
 import { Send, Ban, BadgeCheck } from "lucide-react";
-import { Panel, Pill, PageIntro, DemoNote, btn, th, td } from "@/components/admin-ui";
-import { SAMPLE_LEADS, TEAM_TZ, fmtIn, type LeadStatus } from "@/lib/admin-sample";
+import { Panel, Pill, PageIntro, btn, th, td } from "@/components/admin-ui";
+import { TEAM_TZ, fmtIn, type LeadStatus } from "@/lib/admin-sample";
+import { useAdminLeads, useInvalidateAdmin } from "@/lib/admin-data";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin/leads")({
   head: () => ({
@@ -25,7 +26,21 @@ const STATUS: Record<LeadStatus, { label: string; tone: "success" | "info" | "wa
 };
 
 function Leads() {
-  const [rows, setRows] = useState(SAMPLE_LEADS);
+  const { data: rows = [] } = useAdminLeads();
+  const invalidate = useInvalidateAdmin();
+  const resend = async (l: (typeof rows)[number]) => {
+    const link = `${window.location.origin}/book?t=${l.bookingToken}`;
+    const { error } = await supabase.from("messages").insert({
+      type: "nudge", to_email: l.email, lead_id: l.id,
+      subject: "Your booking link for a free consultation",
+      body: `Hi ${l.name.split(" ")[0] || "there"},\n\nHere's your link to book a free consultation with our engineers. Your details are already filled in:\n${link}\n\nAdvancing Data Solutions`,
+    });
+    if (error) toast.error("Couldn't queue the email"); else { toast.success(`Booking link queued for ${l.email}`); invalidate(); }
+  };
+  const block = async (l: (typeof rows)[number]) => {
+    const { error } = await supabase.from("blocked_senders").insert({ value: l.email.toLowerCase(), reason: "Blocked from Leads" });
+    if (error) toast.error("Couldn't block this address"); else { toast.success(`${l.email} blocked`); invalidate(); }
+  };
   return (
     <div className="mx-auto max-w-6xl">
       <PageIntro title="Leads">Only verified leads receive nudges (24h and 48h, max 2), then go cold at 72h.</PageIntro>
@@ -52,11 +67,11 @@ function Leads() {
                 <td className={td}>
                   <div className="flex justify-end gap-1.5">
                     <button className={btn} disabled={!l.verified || l.status === "blocked" || l.status === "booked"}
-                      onClick={() => toast.success(`Booking link resent to ${l.email}`)}>
+                      onClick={() => resend(l)}>
                       <Send className="h-3 w-3" aria-hidden />Resend
                     </button>
                     <button className={btn + " text-destructive"} disabled={l.status === "blocked"}
-                      onClick={() => { setRows((r) => r.map((x) => (x.id === l.id ? { ...x, status: "blocked" } : x))); toast.success(`${l.email} blocked`); }}>
+                      onClick={() => block(l)}>
                       <Ban className="h-3 w-3" aria-hidden />Block
                     </button>
                   </div>
@@ -66,7 +81,6 @@ function Leads() {
           </tbody>
         </table>
       </Panel>
-      <DemoNote />
     </div>
   );
 }

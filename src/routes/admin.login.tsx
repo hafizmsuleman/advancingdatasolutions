@@ -1,5 +1,6 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import logoAsset from "@/assets/ads-logo-horizontal.svg.asset.json";
 
 const logoUrl = logoAsset.url;
@@ -21,6 +22,24 @@ function AdminLogin() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [msg, setMsg] = useState<{ kind: "error" | "info"; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function signIn() {
+    setBusy(true); setMsg(null);
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (error) { setBusy(false); setMsg({ kind: "error", text: "That email and password don't match." }); return; }
+    const { data: ok } = await supabase.rpc("is_admin");
+    setBusy(false);
+    if (!ok) { await supabase.auth.signOut(); setMsg({ kind: "error", text: "This account doesn't have admin access." }); return; }
+    void navigate({ to: "/admin" });
+  }
+
+  async function forgot() {
+    if (!email.trim()) { setMsg({ kind: "error", text: "Enter your email first, then choose Forgot password." }); return; }
+    await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/reset-password` });
+    setMsg({ kind: "info", text: "If that address has an admin account, we've emailed a link to set a new password." });
+  }
 
   return (
     <div className="flex min-h-[70vh] items-center justify-center px-4 py-12">
@@ -38,7 +57,7 @@ function AdminLogin() {
           className="mt-6 space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
-            void navigate({ to: "/admin" });
+            void signIn();
           }}
         >
           <div className="space-y-1.5">
@@ -57,12 +76,9 @@ function AdminLogin() {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <Label htmlFor="admin-password">Password</Label>
-              <Link
-                to="/admin/login"
-                className="text-xs text-primary hover:underline"
-              >
+              <button type="button" onClick={forgot} className="text-xs text-primary hover:underline">
                 Forgot password?
-              </Link>
+              </button>
             </div>
             <Input
               id="admin-password"
@@ -74,8 +90,11 @@ function AdminLogin() {
               className="h-11"
             />
           </div>
-          <Button type="submit" className="h-11 w-full">
-            Sign in
+          {msg && (
+            <p role="alert" className={msg.kind === "error" ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>{msg.text}</p>
+          )}
+          <Button type="submit" className="h-11 w-full" disabled={busy}>
+            {busy ? "Signing in…" : "Sign in"}
           </Button>
         </form>
       </div>

@@ -5,7 +5,8 @@ import { z } from "zod";
 
 import { StatusBadge } from "@/components/status-badge";
 import { cn } from "@/lib/utils";
-import { getBooking, saveBooking, type SampleBooking } from "@/lib/sample-bookings";
+import { fetchBooking, type SampleBooking } from "@/lib/sample-bookings";
+import { supabase } from "@/integrations/supabase/client";
 
 const TITLE = "Mutual NDA — Advancing Data Solutions";
 const DESC = "Review and sign our mutual non-disclosure agreement before your consultation.";
@@ -40,9 +41,10 @@ function NdaPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    const bk = getBooking(token);
-    setB(bk);
-    if (bk) setName(bk.name);
+    fetchBooking(token).then((bk) => {
+      setB(bk);
+      if (bk) setName(bk.name);
+    });
   }, [token]);
 
   if (b === undefined) return <main className="flex-1" />;
@@ -59,7 +61,7 @@ function NdaPage() {
 
   const company = b.company || "the Client";
 
-  function sign(e: React.FormEvent) {
+  async function sign(e: React.FormEvent) {
     e.preventDefault();
     const r = schema.safeParse({ name, title, agree });
     if (!r.success) {
@@ -69,9 +71,9 @@ function NdaPage() {
       return;
     }
     setErrors({});
-    const nb = { ...b!, nda: { name: r.data.name, title: r.data.title, signedAt: new Date().toISOString() } };
-    saveBooking(nb);
-    setB(nb);
+    await supabase.rpc("sign_nda", { p_token: token, p_name: r.data.name, p_title: r.data.title });
+    const nb = await fetchBooking(token);
+    if (nb) setB(nb);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 

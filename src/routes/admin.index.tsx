@@ -2,8 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { CalendarDays, FileSignature, Mail, Timer, Inbox } from "lucide-react";
 import { Badges, BookingDrawer } from "@/components/booking-drawer";
-import { Panel, PageIntro, DemoNote } from "@/components/admin-ui";
-import { SAMPLE_BOOKINGS, STATS, TEAM_TZ, fmtIn, tzLabel, type AdminBooking } from "@/lib/admin-sample";
+import { Panel, PageIntro } from "@/components/admin-ui";
+import { TEAM_TZ, fmtIn, tzLabel, type AdminBooking } from "@/lib/admin-sample";
+import { useAdminBookings, useAdminStats } from "@/lib/admin-data";
 
 export const Route = createFileRoute("/admin/")({
   head: () => ({
@@ -18,7 +19,9 @@ export const Route = createFileRoute("/admin/")({
 
 function Overnight() {
   const [open, setOpen] = useState<AdminBooking | null>(null);
-  const fresh = SAMPLE_BOOKINGS.filter((b) => b.isNew && b.status === "confirmed");
+  const { data: all = [] } = useAdminBookings();
+  const { data: STATS = { bookingsThisWeek: 0, ndasSigned: 0, emailsAutomated: 0, hoursSaved: 0 } } = useAdminStats();
+  const fresh = all.filter((b) => b.isNew && b.status === "confirmed");
   const stats = [
     { label: "Bookings this week", value: STATS.bookingsThisWeek, icon: CalendarDays },
     { label: "NDAs signed", value: STATS.ndasSigned, icon: FileSignature },
@@ -71,7 +74,6 @@ function Overnight() {
           ))}
         </div>
       )}
-      <DemoNote />
       <BookingDrawer b={open} onClose={() => setOpen(null)} />
     </div>
   );

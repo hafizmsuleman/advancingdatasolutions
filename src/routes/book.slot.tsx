@@ -5,7 +5,9 @@ import { Globe } from "lucide-react";
 import { BookingProgress } from "@/components/booking-progress";
 import { cn } from "@/lib/utils";
 import { loadDraft, saveDraft, type BookingDraft } from "@/lib/booking-draft";
-import { dateKey, generateSlots, partsIn, sampleBookings, visitorDays, type Slot } from "@/lib/slots";
+import { dateKey, generateSlots, partsIn, visitorDays, type Slot } from "@/lib/slots";
+import { useBusy } from "@/lib/use-busy";
+import { requestBooking } from "@/lib/booking.functions";
 
 const TITLE = "Choose a time — Advancing Data Solutions";
 const DESC = "Pick a time for your free consultation with our engineers, shown in your local time.";
@@ -40,6 +42,9 @@ function SlotPage() {
   const [editingTz, setEditingTz] = useState(false);
   const [day, setDay] = useState<string>("");
   const [selected, setSelected] = useState<number | null>(null);
+  const { busy } = useBusy();
+  const [sending, setSending] = useState(false);
+  const [err, setErr] = useState("");
 
   useEffect(() => {
     const d = loadDraft();
@@ -51,8 +56,8 @@ function SlotPage() {
 
   const duration = draft?.duration ?? 30;
   const slots = useMemo(
-    () => (now ? generateSlots({ now, duration, visitorTz: tz, busy: sampleBookings(now) }) : []),
-    [now, duration, tz],
+    () => (now ? generateSlots({ now, duration, visitorTz: tz, busy }) : []),
+    [now, duration, tz, busy],
   );
   const days = useMemo(() => (now ? visitorDays(now, tz) : []), [now, tz]);
   const byDay = useMemo(() => {
@@ -100,9 +105,27 @@ function SlotPage() {
     setDraft(nd);
   }
 
-  function next() {
-    if (!selectedSlot) return;
-    saveDraft({ ...draft, timeZone: tz, slotStart: new Date(selectedSlot.start).toISOString() });
+  async function next() {
+    if (!selectedSlot || sending) return;
+    if (!draft?.leadId) { navigate({ to: "/book" }); return; }
+    setSending(true);
+    setErr("");
+    const slotStart = new Date(selectedSlot.start).toISOString();
+    const r = await requestBooking({ data: { leadId: draft.leadId, duration, slotStart, timeZone: tz } }).catch(() => ({ error: "server" as const }));
+    setSending(false);
+    if ("error" in r) {
+      const msg: Record<string, string> = {
+        slot_taken: "That time was just booked by someone else. Please choose another slot.",
+        email_has_active_booking: "This email already has an upcoming consultation. Use the links in your confirmation email to reschedule or cancel it.",
+        blocked: "We can't accept bookings from this email address. Please use your work email.",
+        rate_limited: "Too many attempts. Please try again in an hour.",
+        server: "Something went wrong on our end. Please try again.",
+      };
+      setErr(msg[r.error] ?? msg["server"]!);
+      if (r.error === "slot_taken") setSelected(null);
+      return;
+    }
+    saveDraft({ ...draft, timeZone: tz, slotStart, bookingId: r.bookingId, email: r.email });
     navigate({ to: "/book/verify" });
   }
 
@@ -185,11 +208,12 @@ function SlotPage() {
             </p>
           )}
 
+          {err && <p role="alert" className="mt-4 text-sm text-warning">{err}</p>}
           <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row">
             <Link to="/book/session" className="inline-flex min-h-11 items-center justify-center rounded-md border border-border px-6 text-sm font-medium hover:bg-muted">Back</Link>
-            <button type="button" disabled={!selectedSlot} onClick={next}
+            <button type="button" disabled={!selectedSlot || sending} onClick={next}
               className="min-h-11 flex-1 rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60">
-              Continue
+              {sending ? "Sending your code…" : "Continue"}
             </button>
           </div>
         </div>

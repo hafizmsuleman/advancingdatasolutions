@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Clock, Video } from "lucide-react";
 
-import { getBooking, type SampleBooking } from "@/lib/sample-bookings";
+import { fetchBooking, type SampleBooking } from "@/lib/sample-bookings";
 
 export function Notice({ title, body, children }: { title: string; body: string; children?: ReactNode }) {
   return (
@@ -25,7 +25,7 @@ export function BookingGate({ token, allowCancelled, children }: {
   children: (b: SampleBooking, setB: (b: SampleBooking) => void) => ReactNode;
 }) {
   const [b, setB] = useState<SampleBooking | null | undefined>(undefined);
-  useEffect(() => setB(getBooking(token)), [token]);
+  useEffect(() => { fetchBooking(token).then(setB); }, [token]);
 
   if (b === undefined) return <main className="flex-1" />;
   if (!b) return <Notice title="Link not found or expired" body="We couldn't find a booking for this link. You can book a new free consultation with our engineers." />;

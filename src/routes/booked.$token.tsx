@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { CalendarPlus, CheckCircle2, Clock, FileSignature, Video } from "lucide-react";
 
 import { StatusBadge } from "@/components/status-badge";
-import { buildIcs, getBooking, type SampleBooking } from "@/lib/sample-bookings";
+import { buildIcs, fetchBooking, type SampleBooking } from "@/lib/sample-bookings";
 
 const TITLE = "You're booked — Advancing Data Solutions";
 const DESC = "Your free consultation with our engineers is confirmed.";
@@ -26,7 +26,7 @@ export const Route = createFileRoute("/booked/$token")({
 function BookedPage() {
   const { token } = Route.useParams();
   const [b, setB] = useState<SampleBooking | null | undefined>(undefined);
-  useEffect(() => setB(getBooking(token)), [token]);
+  useEffect(() => { fetchBooking(token).then(setB); }, [token]);
 
   if (b === undefined) return <main className="flex-1" />;
   if (!b) {
@@ -82,7 +82,7 @@ function BookedPage() {
                 {b.attendanceConfirmedAt && <StatusBadge kind="attendance-confirmed" />}
               </div>
             )}
-            <p className="mt-2 text-muted-foreground">We've sent the details to <span className="break-all font-medium text-foreground">{b.email}</span>.</p>
+            <p className="mt-2 text-muted-foreground">We've sent the details to your email.</p>
           </div>
 
           <dl className="mt-8 divide-y divide-border rounded-lg border border-border">

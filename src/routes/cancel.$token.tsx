@@ -3,7 +3,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 
 import { BookingGate, BookingSummary, Card } from "@/components/booking-gate";
-import { saveBooking, type SampleBooking } from "@/lib/sample-bookings";
+import { fetchBooking, type SampleBooking } from "@/lib/sample-bookings";
+import { cancelBooking } from "@/lib/booking.functions";
 
 const TITLE = "Cancel consultation — Advancing Data Solutions";
 const DESC = "Cancel your free consultation with our engineers.";
@@ -50,10 +51,10 @@ function Cancel({ b, setB, token }: { b: SampleBooking; setB: (b: SampleBooking)
     );
   }
 
-  function cancel() {
-    const nb = { ...b, cancelledAt: new Date().toISOString(), cancelReason: clean(reason) || undefined };
-    saveBooking(nb);
-    setB(nb);
+  async function cancel() {
+    await cancelBooking({ data: { token, reason: clean(reason) } });
+    const nb = await fetchBooking(token);
+    if (nb) setB(nb);
   }
 
   return (
