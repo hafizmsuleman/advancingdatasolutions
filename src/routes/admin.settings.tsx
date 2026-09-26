@@ -115,7 +115,8 @@ function SettingsPage() {
   async function runNow() {
     setRunning(true);
     try {
-      const r = await runFn();
+      let r = await runFn();
+      for (let i = 0; r.skipped && i < 3; i++) { await new Promise((ok) => setTimeout(ok, 3000)); r = await runFn(); }
       if (r.skipped) toast.message("A run is already in progress");
       else toast.success("Automations ran");
       const { data: st } = await supabase.from("settings").select("automation_last_run_at, automation_last_summary").eq("id", 1).single();
