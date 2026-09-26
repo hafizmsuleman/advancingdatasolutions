@@ -10,7 +10,15 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminBookingsRouteImport } from './routes/admin.bookings'
+import { Route as AdminInboxRouteImport } from './routes/admin.inbox'
+import { Route as AdminLeadsRouteImport } from './routes/admin.leads'
+import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AdminOutboxRouteImport } from './routes/admin.outbox'
+import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AttendTokenRouteImport } from './routes/attend.$token'
 import { Route as BookIndexRouteImport } from './routes/book.index'
 import { Route as BookSessionRouteImport } from './routes/book.session'
@@ -26,10 +34,50 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminBookingsRoute = AdminBookingsRouteImport.update({
+  id: '/bookings',
+  path: '/bookings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminInboxRoute = AdminInboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLeadsRoute = AdminLeadsRouteImport.update({
+  id: '/leads',
+  path: '/leads',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminOutboxRoute = AdminOutboxRouteImport.update({
+  id: '/outbox',
+  path: '/outbox',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AttendTokenRoute = AttendTokenRouteImport.update({
   id: '/attend/$token',
@@ -79,7 +127,14 @@ const RescheduleTokenRoute = RescheduleTokenRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/privacy': typeof PrivacyRoute
+  '/admin/bookings': typeof AdminBookingsRoute
+  '/admin/inbox': typeof AdminInboxRoute
+  '/admin/leads': typeof AdminLeadsRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/outbox': typeof AdminOutboxRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/attend/$token': typeof AttendTokenRoute
   '/book/session': typeof BookSessionRoute
   '/book/slot': typeof BookSlotRoute
@@ -88,11 +143,18 @@ export interface FileRoutesByFullPath {
   '/cancel/$token': typeof CancelTokenRoute
   '/nda/$token': typeof NdaTokenRoute
   '/reschedule/$token': typeof RescheduleTokenRoute
+  '/admin/': typeof AdminIndexRoute
   '/book/': typeof BookIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
+  '/admin/bookings': typeof AdminBookingsRoute
+  '/admin/inbox': typeof AdminInboxRoute
+  '/admin/leads': typeof AdminLeadsRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/outbox': typeof AdminOutboxRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/attend/$token': typeof AttendTokenRoute
   '/book/session': typeof BookSessionRoute
   '/book/slot': typeof BookSlotRoute
@@ -101,12 +163,20 @@ export interface FileRoutesByTo {
   '/cancel/$token': typeof CancelTokenRoute
   '/nda/$token': typeof NdaTokenRoute
   '/reschedule/$token': typeof RescheduleTokenRoute
+  '/admin': typeof AdminIndexRoute
   '/book': typeof BookIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/privacy': typeof PrivacyRoute
+  '/admin/bookings': typeof AdminBookingsRoute
+  '/admin/inbox': typeof AdminInboxRoute
+  '/admin/leads': typeof AdminLeadsRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/outbox': typeof AdminOutboxRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/attend/$token': typeof AttendTokenRoute
   '/book/session': typeof BookSessionRoute
   '/book/slot': typeof BookSlotRoute
@@ -115,13 +185,21 @@ export interface FileRoutesById {
   '/cancel/$token': typeof CancelTokenRoute
   '/nda/$token': typeof NdaTokenRoute
   '/reschedule/$token': typeof RescheduleTokenRoute
+  '/admin/': typeof AdminIndexRoute
   '/book/': typeof BookIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/privacy'
+    | '/admin/bookings'
+    | '/admin/inbox'
+    | '/admin/leads'
+    | '/admin/login'
+    | '/admin/outbox'
+    | '/admin/settings'
     | '/attend/$token'
     | '/book/session'
     | '/book/slot'
@@ -130,11 +208,18 @@ export interface FileRouteTypes {
     | '/cancel/$token'
     | '/nda/$token'
     | '/reschedule/$token'
+    | '/admin/'
     | '/book/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/privacy'
+    | '/admin/bookings'
+    | '/admin/inbox'
+    | '/admin/leads'
+    | '/admin/login'
+    | '/admin/outbox'
+    | '/admin/settings'
     | '/attend/$token'
     | '/book/session'
     | '/book/slot'
@@ -143,11 +228,19 @@ export interface FileRouteTypes {
     | '/cancel/$token'
     | '/nda/$token'
     | '/reschedule/$token'
+    | '/admin'
     | '/book'
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/privacy'
+    | '/admin/bookings'
+    | '/admin/inbox'
+    | '/admin/leads'
+    | '/admin/login'
+    | '/admin/outbox'
+    | '/admin/settings'
     | '/attend/$token'
     | '/book/session'
     | '/book/slot'
@@ -156,11 +249,13 @@ export interface FileRouteTypes {
     | '/cancel/$token'
     | '/nda/$token'
     | '/reschedule/$token'
+    | '/admin/'
     | '/book/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
   PrivacyRoute: typeof PrivacyRoute
   AttendTokenRoute: typeof AttendTokenRoute
   BookSessionRoute: typeof BookSessionRoute
@@ -182,12 +277,68 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacy': {
       id: '/privacy'
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/bookings': {
+      id: '/admin/bookings'
+      path: '/bookings'
+      fullPath: '/admin/bookings'
+      preLoaderRoute: typeof AdminBookingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/inbox': {
+      id: '/admin/inbox'
+      path: '/inbox'
+      fullPath: '/admin/inbox'
+      preLoaderRoute: typeof AdminInboxRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/leads': {
+      id: '/admin/leads'
+      path: '/leads'
+      fullPath: '/admin/leads'
+      preLoaderRoute: typeof AdminLeadsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/outbox': {
+      id: '/admin/outbox'
+      path: '/outbox'
+      fullPath: '/admin/outbox'
+      preLoaderRoute: typeof AdminOutboxRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/attend/$token': {
       id: '/attend/$token'
@@ -255,8 +406,31 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AdminRouteChildren {
+  AdminBookingsRoute: typeof AdminBookingsRoute
+  AdminInboxRoute: typeof AdminInboxRoute
+  AdminLeadsRoute: typeof AdminLeadsRoute
+  AdminLoginRoute: typeof AdminLoginRoute
+  AdminOutboxRoute: typeof AdminOutboxRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminBookingsRoute: AdminBookingsRoute,
+  AdminInboxRoute: AdminInboxRoute,
+  AdminLeadsRoute: AdminLeadsRoute,
+  AdminLoginRoute: AdminLoginRoute,
+  AdminOutboxRoute: AdminOutboxRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
   PrivacyRoute: PrivacyRoute,
   AttendTokenRoute: AttendTokenRoute,
   BookSessionRoute: BookSessionRoute,
