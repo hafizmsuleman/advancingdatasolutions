@@ -29,6 +29,13 @@
       "when": 1790462908815,
       "tag": "0003_cron_token_check",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790465814390,
+      "tag": "0004_demo_messages_to_admin",
+      "breakpoints": true
     }
   ]
 }
