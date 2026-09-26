@@ -4,7 +4,7 @@ import { Send, Ban, BadgeCheck } from "lucide-react";
 import { Panel, Pill, PageIntro, btn, th, td } from "@/components/admin-ui";
 import { browserTimeZone, fmtIn, type LeadStatus } from "@/lib/admin-sample";
 import { useAdminLeads, useInvalidateAdmin } from "@/lib/admin-data";
-import { blockSender } from "@/lib/admin-data";
+import { blockSender, unblockSender } from "@/lib/admin-data";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin/leads")({
@@ -20,6 +20,7 @@ export const Route = createFileRoute("/admin/leads")({
 
 const STATUS: Record<LeadStatus, { label: string; tone: "success" | "info" | "warning" | "error" | "neutral" }> = {
   new: { label: "New", tone: "info" },
+  link_sent: { label: "Link sent", tone: "info" },
   nudged: { label: "Nudged", tone: "warning" },
   booked: { label: "Booked", tone: "success" },
   cold: { label: "Cold", tone: "neutral" },
@@ -42,6 +43,9 @@ function Leads() {
     const ok = await blockSender(l.email, "Leads");
     if (ok === null) return;
     if (!ok) toast.error("Couldn't block this address"); else { toast.success("Blocked"); invalidate(); }
+  };
+  const unblock = async (l: (typeof rows)[number]) => {
+    if (await unblockSender(l.email)) { toast.success("Unblocked"); invalidate(); } else toast.error("Couldn't unblock this address");
   };
   return (
     <div className="mx-auto max-w-6xl">
@@ -72,10 +76,15 @@ function Leads() {
                       onClick={() => resend(l)}>
                       <Send className="h-3 w-3" aria-hidden />Resend
                     </button>
-                    <button className={btn + " text-destructive"} disabled={l.status === "blocked"}
-                      onClick={() => block(l)}>
-                      <Ban className="h-3 w-3" aria-hidden />Block
-                    </button>
+                    {l.status === "blocked" ? (
+                      <button className={btn} onClick={() => unblock(l)}>
+                        <Ban className="h-3 w-3" aria-hidden />Unblock
+                      </button>
+                    ) : (
+                      <button className={btn + " text-destructive"} onClick={() => block(l)}>
+                        <Ban className="h-3 w-3" aria-hidden />Block
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
