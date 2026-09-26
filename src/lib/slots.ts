@@ -41,7 +41,8 @@ export function dateKey(ms: number, tz: string) {
   return `${p.y}-${String(p.m).padStart(2, "0")}-${String(p.d).padStart(2, "0")}`;
 }
 
-export type Busy = { start: number; end: number };
+/** calendar: busy time from Google Calendar — blocks slots but doesn't count toward the daily cap. */
+export type Busy = { start: number; end: number; calendar?: boolean };
 
 /** Sample confirmed bookings, placed relative to now so some slots are always hidden. */
 export function sampleBookings(now: number): Busy[] {
@@ -74,7 +75,7 @@ export function generateSlots(opts: { now: number; duration: 30 | 60; visitorTz:
     if (p.wd === 0 || p.wd === 6) continue;
     const dayStart = zonedToUtc(p.y, p.m, p.d, AVAIL_START_MIN, TEAM_TZ);
     const dayEnd = zonedToUtc(p.y, p.m, p.d, AVAIL_END_MIN, TEAM_TZ);
-    const dayBusy = busy.filter((b) => b.start >= dayStart && b.start < dayEnd);
+    const dayBusy = busy.filter((b) => !b.calendar && b.start >= dayStart && b.start < dayEnd);
     if (dayBusy.length >= MAX_PER_DAY) continue;
     for (let s = dayStart; s + duration * 60000 <= dayEnd; s += STEP_MIN * 60000) {
       const e = s + duration * 60000;
