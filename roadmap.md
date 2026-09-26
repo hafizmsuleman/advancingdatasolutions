@@ -4,7 +4,7 @@ Build order: frontend-first with sample data, then Lovable Cloud (schema.sql pas
 
 ## Phase 1 — Frontend (sample data)
 - [x] F1 Design system & shell (brand tokens, Inter, header/footer, progress bar, badges, logo + favicon)
-- [ ] F2 Landing page `/`
+- [x] F2 Landing page `/`
 - [ ] F3 Booking flow `/book` (qualification, routing 30/60 min, `?t=` prefill)
 - [ ] F4 Session & slot picker `/book/session`, `/book/slot`
 - [ ] F5 Verify & confirmation `/book/verify`, `/booked/:token`
