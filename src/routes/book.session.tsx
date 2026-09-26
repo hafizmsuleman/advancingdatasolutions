@@ -97,9 +97,9 @@ function SessionPage() {
 
           <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row">
             <Link to="/book" className="inline-flex min-h-11 items-center justify-center rounded-md border border-border px-6 text-sm font-medium hover:bg-muted">Edit details</Link>
-            <button type="button" disabled className="min-h-11 flex-1 rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground opacity-60">
-              Choose a time (coming next)
-            </button>
+            <Link to="/book/slot" onClick={() => saveDraft({ ...draft, duration })} className="inline-flex min-h-11 flex-1 items-center justify-center rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary-hover">
+              Choose a time
+            </Link>
           </div>
         </div>
       </div>
