@@ -47,7 +47,7 @@ function Dashboard() {
         <Panel className="flex flex-col items-center p-10 text-center">
           <Inbox className="h-8 w-8 text-muted-foreground" aria-hidden />
           <p className="mt-2 font-medium text-foreground">All caught up</p>
-          <p className="text-sm text-muted-foreground">No new bookings overnight.</p>
+           <p className="text-sm text-muted-foreground">No new bookings.</p>
         </Panel>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
