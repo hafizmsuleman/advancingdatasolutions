@@ -33,9 +33,9 @@ function sixDigits() {
 async function isBlocked(db: Awaited<ReturnType<typeof admin>>, email: string) {
   const e = email.toLowerCase();
   const domain = e.split("@")[1] ?? "";
-  if (DISPOSABLE.includes(domain)) return true;
+  if (DISPOSABLE.includes(domain)) return "disposable" as const;
   const { data } = await db.from("blocked_senders").select("id").in("value", [e, domain]).limit(1);
-  return !!data?.length;
+  return data?.length ? ("blocked" as const) : null;
 }
 
 /** Busy intervals for the slot picker (no client data leaves the server). */
@@ -85,7 +85,8 @@ export const submitLead = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const db = await admin();
     const email = data.email.toLowerCase();
-    if (await isBlocked(db, email)) return { error: "blocked" as const };
+    const blk = await isBlocked(db, email);
+    if (blk) return { error: blk };
     const vh = await visitorHash();
     const since = new Date(Date.now() - 86400_000).toISOString();
     const { count } = await db.from("leads").select("id", { count: "exact", head: true }).eq("visitor_hash", vh).gte("created_at", since);
@@ -116,7 +117,8 @@ export const requestBooking = createServerFn({ method: "POST" })
     const vh = await visitorHash();
     const { data: lead } = await db.from("leads").select("id,email,full_name,status").eq("id", data.leadId).single();
     if (!lead?.email) return { error: "server" as const };
-    if (await isBlocked(db, lead.email)) return { error: "blocked" as const };
+    const blk = await isBlocked(db, lead.email);
+    if (blk) return { error: blk };
 
     // Server-side slot re-check (availability, notice, horizon, local hours, cap, busy)
     const start = Date.parse(data.slotStart);

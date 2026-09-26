@@ -117,7 +117,8 @@ function SlotPage() {
       const msg: Record<string, string> = {
         slot_taken: "That time was just booked by someone else. Please choose another slot.",
         email_has_active_booking: "This email already has an upcoming consultation. Use the links in your confirmation email to reschedule or cancel it.",
-        blocked: "Please use your work email. We can't accept bookings from this address.",
+        disposable: "Please use your work email.",
+        blocked: "We're unable to accept a booking from this address. If you think this is a mistake, email us at contact@advancingdatasolutions.com.",
         rate_limited: "Too many attempts. Please try again in an hour.",
         server: "Something went wrong on our end. Please try again.",
       };
