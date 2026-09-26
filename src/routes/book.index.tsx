@@ -152,7 +152,7 @@ function BookPage() {
   );
 }
 
-function FieldError({ id, msg }: { id: string; msg?: string }) {
+function FieldError({ id, msg }: { id: string; msg?: string | undefined }) {
   if (!msg) return null;
   return <p id={`e-${id}`} role="alert" className="text-sm text-destructive">{msg}</p>;
 }
@@ -165,7 +165,7 @@ function PrimaryButton({ children }: { children: React.ReactNode }) {
   );
 }
 
-function TextField(p: { id: string; label: string; value?: string; error?: string; type?: string; autoComplete?: string; onChange: (v: string) => void }) {
+function TextField(p: { id: string; label: string; value?: string | undefined; error?: string | undefined; type?: string; autoComplete?: string; onChange: (v: string) => void }) {
   return (
     <div className="space-y-2">
       <Label htmlFor={`f-${p.id}`}>{p.label}</Label>
@@ -176,7 +176,7 @@ function TextField(p: { id: string; label: string; value?: string; error?: strin
   );
 }
 
-function Choice(p: { id: string; legend: string; options: { value: string; label: string }[]; value?: string; error?: string; cols?: string; onChange: (v: string) => void }) {
+function Choice(p: { id: string; legend: string; options: { value: string; label: string }[]; value?: string | undefined; error?: string | undefined; cols?: string; onChange: (v: string) => void }) {
   return (
     <fieldset className="space-y-2" aria-describedby={p.error ? `e-${p.id}` : undefined}>
       <legend className="mb-2 text-sm font-medium">{p.legend}</legend>
