@@ -15,6 +15,10 @@ import { Route as BookIndexRouteImport } from './routes/book.index'
 import { Route as BookSessionRouteImport } from './routes/book.session'
 import { Route as BookSlotRouteImport } from './routes/book.slot'
 import { Route as BookVerifyRouteImport } from './routes/book.verify'
+import { Route as BookedTokenRouteImport } from './routes/booked.$token'
+import { Route as CancelTokenRouteImport } from './routes/cancel.$token'
+import { Route as NdaTokenRouteImport } from './routes/nda.$token'
+import { Route as RescheduleTokenRouteImport } from './routes/reschedule.$token'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +50,26 @@ const BookVerifyRoute = BookVerifyRouteImport.update({
   path: '/book/verify',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BookedTokenRoute = BookedTokenRouteImport.update({
+  id: '/booked/$token',
+  path: '/booked/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CancelTokenRoute = CancelTokenRouteImport.update({
+  id: '/cancel/$token',
+  path: '/cancel/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NdaTokenRoute = NdaTokenRouteImport.update({
+  id: '/nda/$token',
+  path: '/nda/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RescheduleTokenRoute = RescheduleTokenRouteImport.update({
+  id: '/reschedule/$token',
+  path: '/reschedule/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -53,6 +77,10 @@ export interface FileRoutesByFullPath {
   '/book/session': typeof BookSessionRoute
   '/book/slot': typeof BookSlotRoute
   '/book/verify': typeof BookVerifyRoute
+  '/booked/$token': typeof BookedTokenRoute
+  '/cancel/$token': typeof CancelTokenRoute
+  '/nda/$token': typeof NdaTokenRoute
+  '/reschedule/$token': typeof RescheduleTokenRoute
   '/book/': typeof BookIndexRoute
 }
 export interface FileRoutesByTo {
@@ -61,6 +89,10 @@ export interface FileRoutesByTo {
   '/book/session': typeof BookSessionRoute
   '/book/slot': typeof BookSlotRoute
   '/book/verify': typeof BookVerifyRoute
+  '/booked/$token': typeof BookedTokenRoute
+  '/cancel/$token': typeof CancelTokenRoute
+  '/nda/$token': typeof NdaTokenRoute
+  '/reschedule/$token': typeof RescheduleTokenRoute
   '/book': typeof BookIndexRoute
 }
 export interface FileRoutesById {
@@ -70,6 +102,10 @@ export interface FileRoutesById {
   '/book/session': typeof BookSessionRoute
   '/book/slot': typeof BookSlotRoute
   '/book/verify': typeof BookVerifyRoute
+  '/booked/$token': typeof BookedTokenRoute
+  '/cancel/$token': typeof CancelTokenRoute
+  '/nda/$token': typeof NdaTokenRoute
+  '/reschedule/$token': typeof RescheduleTokenRoute
   '/book/': typeof BookIndexRoute
 }
 export interface FileRouteTypes {
@@ -80,10 +116,23 @@ export interface FileRouteTypes {
     | '/book/session'
     | '/book/slot'
     | '/book/verify'
+    | '/booked/$token'
+    | '/cancel/$token'
+    | '/nda/$token'
+    | '/reschedule/$token'
     | '/book/'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/privacy' | '/book/session' | '/book/slot' | '/book/verify' | '/book'
+    | '/'
+    | '/privacy'
+    | '/book/session'
+    | '/book/slot'
+    | '/book/verify'
+    | '/booked/$token'
+    | '/cancel/$token'
+    | '/nda/$token'
+    | '/reschedule/$token'
+    | '/book'
   id:
     | '__root__'
     | '/'
@@ -91,6 +140,10 @@ export interface FileRouteTypes {
     | '/book/session'
     | '/book/slot'
     | '/book/verify'
+    | '/booked/$token'
+    | '/cancel/$token'
+    | '/nda/$token'
+    | '/reschedule/$token'
     | '/book/'
   fileRoutesById: FileRoutesById
 }
@@ -100,6 +153,10 @@ export interface RootRouteChildren {
   BookSessionRoute: typeof BookSessionRoute
   BookSlotRoute: typeof BookSlotRoute
   BookVerifyRoute: typeof BookVerifyRoute
+  BookedTokenRoute: typeof BookedTokenRoute
+  CancelTokenRoute: typeof CancelTokenRoute
+  NdaTokenRoute: typeof NdaTokenRoute
+  RescheduleTokenRoute: typeof RescheduleTokenRoute
   BookIndexRoute: typeof BookIndexRoute
 }
 
@@ -147,6 +204,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BookVerifyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/booked/$token': {
+      id: '/booked/$token'
+      path: '/booked/$token'
+      fullPath: '/booked/$token'
+      preLoaderRoute: typeof BookedTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cancel/$token': {
+      id: '/cancel/$token'
+      path: '/cancel/$token'
+      fullPath: '/cancel/$token'
+      preLoaderRoute: typeof CancelTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nda/$token': {
+      id: '/nda/$token'
+      path: '/nda/$token'
+      fullPath: '/nda/$token'
+      preLoaderRoute: typeof NdaTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reschedule/$token': {
+      id: '/reschedule/$token'
+      path: '/reschedule/$token'
+      fullPath: '/reschedule/$token'
+      preLoaderRoute: typeof RescheduleTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -156,6 +241,10 @@ const rootRouteChildren: RootRouteChildren = {
   BookSessionRoute: BookSessionRoute,
   BookSlotRoute: BookSlotRoute,
   BookVerifyRoute: BookVerifyRoute,
+  BookedTokenRoute: BookedTokenRoute,
+  CancelTokenRoute: CancelTokenRoute,
+  NdaTokenRoute: NdaTokenRoute,
+  RescheduleTokenRoute: RescheduleTokenRoute,
   BookIndexRoute: BookIndexRoute,
 }
 export const routeTree = rootRouteImport
