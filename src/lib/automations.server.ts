@@ -79,7 +79,6 @@ export async function runAutomations(origin: string) {
     const now = Date.now();
     const demoNow = now + lease.virtual_clock_offset_min * 60_000;
     const clock = (demo: boolean) => (demo ? demoNow : now);
-    const link = lease.fallback_meeting_link ?? "";
 
     // 1. Expire pending requests after 10 minutes.
     const { data: exp } = await d.from("bookings").update({ status: "cancelled", cancelled_at: nowIso, cancel_reason: "expired" })
@@ -92,8 +91,8 @@ export async function runAutomations(origin: string) {
       .lt("created_at", new Date(now - 24 * H).toISOString()).is("attendance_confirmed_at", null).limit(BATCH);
     const oldIds = (old ?? []).map((b) => b.id);
     if (oldIds.length) {
-      const { data: refs } = await d.from("bookings").select("id").in("rescheduled_from_id", oldIds);
-      const ids = oldIds.filter((id) => !(refs ?? []).some(() => false));
+      const { data: refs } = await d.from("bookings").select("rescheduled_from_id").in("rescheduled_from_id", oldIds);
+      const ids = oldIds.filter((id) => !(refs ?? []).some((r) => r.rescheduled_from_id === id));
       const { data: nda } = await d.from("ndas").select("booking_id").in("booking_id", ids);
       const del = ids.filter((id) => !(nda ?? []).some((n) => n.booking_id === id));
       if (del.length) {
@@ -186,7 +185,6 @@ export async function runAutomations(origin: string) {
       }, false);
       c.nudges++;
     }
-    void link;
   } finally {
     const summary = `Expired ${c.expired}, deleted ${c.deleted}, completed ${c.completed}, flagged ${c.flagged}, released ${c.released}, nudges ${c.nudges}, cold ${c.cold}, reminders dropped ${c.cancelledReminders}`;
     await d.from("settings").update({ automation_lock_until: null, automation_last_run_at: new Date().toISOString(), automation_last_summary: summary }).eq("id", 1);
