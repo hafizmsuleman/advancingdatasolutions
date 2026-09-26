@@ -7,6 +7,7 @@ import { AREAS, BUDGETS, PLATFORMS, TIMELINES } from "./booking-draft";
 import { BUDGET_TO_DB, NEED_TO_DB, PLATFORM_TO_DB } from "./enums";
 import { generateSlots, type Busy } from "./slots";
 import { cancelPendingReminders, scheduleReminders } from "./automations.server";
+import { calendarBusy, meetingLink, syncBookingCalendar } from "./calendar.server";
 
 const DISPOSABLE = ["mailinator.com", "guerrillamail.com", "10minutemail.com", "tempmail.com", "temp-mail.org", "yopmail.com", "trashmail.com", "sharklasers.com", "getnada.com", "dispostable.com", "maildrop.cc", "throwawaymail.com"];
 const stripLinks = (s: string) => s.replace(/(https?:\/\/|www\.)\S+/gi, "").trim();
@@ -42,13 +43,17 @@ async function isBlocked(db: Awaited<ReturnType<typeof admin>>, email: string) {
 /** Busy intervals for the slot picker (no client data leaves the server). */
 async function loadBusy(db: Awaited<ReturnType<typeof admin>>, excludeToken?: string): Promise<Busy[]> {
   const { data: s } = await db.from("settings").select("demo_mode").eq("id", 1).single();
-  let q = db.from("bookings").select("start_utc,end_utc,manage_token,is_demo")
+  let q = db.from("bookings").select("start_utc,end_utc,manage_token,is_demo,google_event_id")
     .in("status", ["confirmed", "attendance_confirmed"])
     .gte("end_utc", new Date(Date.now() - 86400_000).toISOString());
   if (!s?.demo_mode) q = q.eq("is_demo", false);
-  const { data } = await q;
-  return (data ?? []).filter((b) => b.manage_token !== excludeToken)
+  const [{ data }, cal] = await Promise.all([q, calendarBusy()]);
+  const own = (data ?? []).find((b) => b.manage_token === excludeToken)?.google_event_id;
+  const bookings: Busy[] = (data ?? []).filter((b) => b.manage_token !== excludeToken)
     .map((b) => ({ start: Date.parse(b.start_utc), end: Date.parse(b.end_utc) }));
+  // Google busy times (minus this booking's own event when rescheduling); only start/end leave the server.
+  const google: Busy[] = cal.filter((c) => c.eventId !== own).map((c) => ({ start: c.start, end: c.end, calendar: true }));
+  return [...bookings, ...google];
 }
 
 export const getBusy = createServerFn({ method: "GET" })
@@ -209,14 +214,15 @@ export const verifyCode = createServerFn({ method: "POST" })
     if (b) {
       const lead = b.leads as { full_name: string | null; company: string | null } | null;
       const when = new Intl.DateTimeFormat("en-GB", { timeZone: b.client_tz, dateStyle: "full", timeStyle: "short" }).format(Date.parse(b.start_utc));
-      const { data: s } = await db.from("settings").select("fallback_meeting_link").eq("id", 1).single();
+      await syncBookingCalendar(db, b.id);
+      const link = await meetingLink(db, b.id);
       const origin = new URL(getRequest().url).origin;
       const short = Date.parse(b.start_utc) - Date.parse(b.created_at) < 26 * 3600_000;
       const attend = short ? `\n\nPlease confirm you can attend. If we don't hear from you 6 hours before the start, we'll release the time:\n${origin}/attend/${b.manage_token}` : "";
       await queueMessage(db, {
         type: "confirmation", to: b.email, bookingId: b.id, leadId: b.lead_id, minutes: 10,
         subject: `You're booked: Free Consultation (${b.length_min} min)`,
-        body: `Hi ${(lead?.full_name ?? "").split(" ")[0] || "there"},\n\nThanks for booking a free ${b.length_min}-minute consultation with our engineers. Your call is on ${when} (your time).\n\nMeeting link: ${s?.fallback_meeting_link ?? ""}\nReference: ${b.code}${attend}\n\nSpeak soon,\nAdvancing Data Solutions`,
+        body: `Hi ${(lead?.full_name ?? "").split(" ")[0] || "there"},\n\nThanks for booking a free ${b.length_min}-minute consultation with our engineers. Your call is on ${when} (your time).\n\nMeeting link: ${link}\nReference: ${b.code}${attend}\n\nSpeak soon,\nAdvancing Data Solutions`,
       });
       await scheduleReminders(db, { ...b, full_name: lead?.full_name ?? null }, origin, { nda: true });
       await queueMessage(db, {
@@ -251,6 +257,7 @@ export const rescheduleBooking = createServerFn({ method: "POST" })
       client_tz: data.timeZone, status: "confirmed", attendance_confirmed_at: null,
     }).eq("id", b.id);
     if (error) return { error: "slot_taken" as const };
+    await syncBookingCalendar(db, b.id);
     const origin = new URL(getRequest().url).origin;
     const { data: full } = await db.from("bookings").select("manage_token, leads(full_name), ndas(id)").eq("id", b.id).single();
     const signed = Array.isArray(full?.ndas) ? full.ndas.length > 0 : !!full?.ndas;
@@ -278,6 +285,7 @@ export const cancelBooking = createServerFn({ method: "POST" })
     if (r !== "cancelled") return { error: "not_found" as const };
     const { data: b } = await db.from("bookings").select("id,email,code,lead_id").eq("manage_token", data.token).single();
     if (b) await cancelPendingReminders(db, b.id);
+    if (b) await syncBookingCalendar(db, b.id);
     if (b) await queueMessage(db, {
       type: "cancel_notice", to: b.email, bookingId: b.id, leadId: b.lead_id,
       subject: "Your consultation has been cancelled",

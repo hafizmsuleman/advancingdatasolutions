@@ -6,7 +6,7 @@ const STEP_MIN = 30;
 const BUFFER_MIN = 15;
 const MAX_PER_DAY = 3;
 const NOTICE_MS = 24 * 3600_000;
-const HORIZON_DAYS = 14;
+export const HORIZON_DAYS = 14;
 const LOCAL_START_MIN = 8 * 60;
 const LOCAL_END_MIN = 19 * 60;
 

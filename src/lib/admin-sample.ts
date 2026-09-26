@@ -28,6 +28,7 @@ export type AdminBooking = {
   createdAt: string;
   verified: boolean;
   ndaSigned: boolean;
+  calendarFailed?: boolean;
   attendance: boolean;
   status: BookingStatus;
   isNew: boolean;

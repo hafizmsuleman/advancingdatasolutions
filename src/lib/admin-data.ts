@@ -47,6 +47,7 @@ export function useAdminBookings() {
           duration: b.length_min as 30 | 60, start: b.start_utc, createdAt: b.created_at,
           verified: !!l?.email_verified_at, ndaSigned: nda,
           attendance: b.status === "attendance_confirmed" || !!b.attendance_confirmed_at,
+          calendarFailed: !b.is_demo && b.calendar_sync_status === "failed" && ["confirmed", "attendance_confirmed"].includes(b.status),
           status, isNew: status === "confirmed" && Date.now() - Date.parse(b.created_at) < 36 * 3600_000,
         };
       });

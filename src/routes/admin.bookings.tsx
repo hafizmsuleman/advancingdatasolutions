@@ -99,7 +99,7 @@ function Bookings() {
                 <td className={td + " tabular-nums"}>{fmtIn(b.start, browserTimeZone())}</td>
                 <td className={td + " tabular-nums"}>{fmtIn(b.start, b.clientTz)}<div className="text-xs text-muted-foreground">Client's time ({tzLabel(b.clientTz)})</div></td>
                 <td className={td + " tabular-nums"}>{b.duration} min</td>
-                <td className={td}><Pill tone={STATUS[b.status].tone}>{STATUS[b.status].label}</Pill></td>
+                <td className={td}><Pill tone={STATUS[b.status].tone}>{STATUS[b.status].label}</Pill>{b.calendarFailed && <div className="mt-1"><Pill tone="warning">Calendar not synced</Pill></div>}</td>
                 <td className={td}>
                   <div className="flex justify-end gap-1.5">
                   {b.status === "confirmed" && (
