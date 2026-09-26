@@ -113,3 +113,15 @@ export function useAdminOutbox() {
 }
 
 export { cap };
+
+/** Ask which email or domain to block, then add it to blocked_senders. */
+export async function blockSender(email: string, source: string): Promise<boolean | null> {
+  const input = window.prompt("Block this email, or edit it to a domain (e.g. example.com):", email.toLowerCase());
+  if (input === null) return null;
+  const value = input.trim().toLowerCase().replace(/^@/, "");
+  if (!/^([^\s@]+@)?[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(value) || value.length > 254) return false;
+  const { data: exists } = await supabase.from("blocked_senders").select("id").eq("value", value).limit(1);
+  if (exists?.length) return true;
+  const { error } = await supabase.from("blocked_senders").insert({ value, reason: `Blocked from ${source}` });
+  return !error;
+}

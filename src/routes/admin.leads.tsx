@@ -4,6 +4,7 @@ import { Send, Ban, BadgeCheck } from "lucide-react";
 import { Panel, Pill, PageIntro, btn, th, td } from "@/components/admin-ui";
 import { browserTimeZone, fmtIn, type LeadStatus } from "@/lib/admin-sample";
 import { useAdminLeads, useInvalidateAdmin } from "@/lib/admin-data";
+import { blockSender } from "@/lib/admin-data";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin/leads")({
@@ -38,8 +39,9 @@ function Leads() {
     if (error) toast.error("Couldn't queue the email"); else { toast.success(`Booking link queued for ${l.email}`); invalidate(); }
   };
   const block = async (l: (typeof rows)[number]) => {
-    const { error } = await supabase.from("blocked_senders").insert({ value: l.email.toLowerCase(), reason: "Blocked from Leads" });
-    if (error) toast.error("Couldn't block this address"); else { toast.success(`${l.email} blocked`); invalidate(); }
+    const ok = await blockSender(l.email, "Leads");
+    if (ok === null) return;
+    if (!ok) toast.error("Couldn't block this address"); else { toast.success("Blocked"); invalidate(); }
   };
   return (
     <div className="mx-auto max-w-6xl">

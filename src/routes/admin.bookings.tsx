@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Panel, Pill, PageIntro, btn, field, th, td } from "@/components/admin-ui";
-import { useAdminBookings, useInvalidateAdmin } from "@/lib/admin-data";
+import { blockSender, useAdminBookings, useInvalidateAdmin } from "@/lib/admin-data";
 import { supabase } from "@/integrations/supabase/client";
 import { browserTimeZone, fmtIn, dayKeyIn, tzLabel, type AdminBooking, type BookingStatus } from "@/lib/admin-sample";
 import { BookingDrawer } from "@/components/booking-drawer";
@@ -49,6 +49,12 @@ function Bookings() {
     });
   };
 
+  const block = async (b: AdminBooking) => {
+    const ok = await blockSender(b.email, "Bookings");
+    if (ok === null) return;
+    if (!ok) toast.error("Couldn't block this address"); else toast.success("Blocked");
+  };
+
   return (
     <div className="mx-auto max-w-6xl">
       <PageIntro title="Bookings">{shown.length} of {rows.length} bookings</PageIntro>
@@ -93,13 +99,16 @@ function Bookings() {
                 <td className={td + " tabular-nums"}>{b.duration} min</td>
                 <td className={td}><Pill tone={STATUS[b.status].tone}>{STATUS[b.status].label}</Pill></td>
                 <td className={td}>
+                  <div className="flex justify-end gap-1.5">
                   {b.status === "confirmed" && (
-                    <div className="flex justify-end gap-1.5">
+                    <>
                       <button className={btn} onClick={() => set(b.id, "completed", `${b.company} marked completed`)}>Mark completed</button>
                       <button className={btn} onClick={() => set(b.id, "no_show", `${b.company} marked no-show`)}>Mark no-show</button>
                       <button className={btn + " text-destructive"} onClick={() => confirm(`Cancel ${b.company}'s consultation?`) && set(b.id, "cancelled", "Booking cancelled")}>Cancel</button>
-                    </div>
+                    </>
                   )}
+                    <button className={btn + " text-destructive"} onClick={() => block(b)}>Block</button>
+                  </div>
                 </td>
               </tr>
             ))}

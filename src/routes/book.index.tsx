@@ -102,7 +102,7 @@ function BookPage() {
     setSending(false);
     if ("error" in res) {
       setServerError(
-        res.error === "blocked" ? "We can't accept bookings from this email address. Please use your work email."
+        res.error === "blocked" ? "Please use your work email. We can't accept bookings from this address."
         : res.error === "rate_limited" ? "Too many attempts today. Please try again tomorrow or email contact@advancingdatasolutions.com."
         : "Something went wrong on our end. Please try again.",
       );

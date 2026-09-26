@@ -176,8 +176,11 @@ export const resendCode = createServerFn({ method: "POST" })
     if (last.resend_count >= 3) return { error: "max_resends" as const };
     if (Date.now() - Date.parse(last.last_sent_at) < 60_000) return { error: "too_soon" as const };
     const hour = new Date(Date.now() - 3600_000).toISOString();
-    const { count } = await db.from("email_verifications").select("id", { count: "exact", head: true }).eq("email", b.email).gte("created_at", hour);
-    if ((count ?? 0) >= 3) return { error: "rate_limited" as const };
+    const [{ count }, { count: perVisitor }] = await Promise.all([
+      db.from("email_verifications").select("id", { count: "exact", head: true }).eq("email", b.email).gte("created_at", hour),
+      db.from("email_verifications").select("id", { count: "exact", head: true }).eq("visitor_hash", vh).gte("created_at", hour),
+    ]);
+    if ((count ?? 0) >= 3 || (perVisitor ?? 0) >= 10) return { error: "rate_limited" as const };
     await db.from("bookings").update({ verify_expires_at: new Date(Date.now() + 600_000).toISOString() }).eq("id", b.id);
     const name = (b.leads as { full_name: string | null } | null)?.full_name ?? "";
     await sendCode(db, b.id, b.email, name, b.lead_id, vh, last.resend_count + 1);
