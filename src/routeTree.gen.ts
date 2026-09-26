@@ -29,6 +29,7 @@ import { Route as BookedTokenRouteImport } from './routes/booked.$token'
 import { Route as CancelTokenRouteImport } from './routes/cancel.$token'
 import { Route as NdaTokenRouteImport } from './routes/nda.$token'
 import { Route as RescheduleTokenRouteImport } from './routes/reschedule.$token'
+import { Route as ApiPublicHooksAutomationsRouteImport } from './routes/api/public/hooks/automations'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -130,6 +131,12 @@ const RescheduleTokenRoute = RescheduleTokenRouteImport.update({
   path: '/reschedule/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksAutomationsRoute =
+  ApiPublicHooksAutomationsRouteImport.update({
+    id: '/api/public/hooks/automations',
+    path: '/api/public/hooks/automations',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -152,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/reschedule/$token': typeof RescheduleTokenRoute
   '/admin/': typeof AdminIndexRoute
   '/book/': typeof BookIndexRoute
+  '/api/public/hooks/automations': typeof ApiPublicHooksAutomationsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -173,6 +181,7 @@ export interface FileRoutesByTo {
   '/reschedule/$token': typeof RescheduleTokenRoute
   '/admin': typeof AdminIndexRoute
   '/book': typeof BookIndexRoute
+  '/api/public/hooks/automations': typeof ApiPublicHooksAutomationsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -196,6 +205,7 @@ export interface FileRoutesById {
   '/reschedule/$token': typeof RescheduleTokenRoute
   '/admin/': typeof AdminIndexRoute
   '/book/': typeof BookIndexRoute
+  '/api/public/hooks/automations': typeof ApiPublicHooksAutomationsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -220,6 +230,7 @@ export interface FileRouteTypes {
     | '/reschedule/$token'
     | '/admin/'
     | '/book/'
+    | '/api/public/hooks/automations'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -241,6 +252,7 @@ export interface FileRouteTypes {
     | '/reschedule/$token'
     | '/admin'
     | '/book'
+    | '/api/public/hooks/automations'
   id:
     | '__root__'
     | '/'
@@ -263,6 +275,7 @@ export interface FileRouteTypes {
     | '/reschedule/$token'
     | '/admin/'
     | '/book/'
+    | '/api/public/hooks/automations'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -279,6 +292,7 @@ export interface RootRouteChildren {
   NdaTokenRoute: typeof NdaTokenRoute
   RescheduleTokenRoute: typeof RescheduleTokenRoute
   BookIndexRoute: typeof BookIndexRoute
+  ApiPublicHooksAutomationsRoute: typeof ApiPublicHooksAutomationsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -423,6 +437,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RescheduleTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/automations': {
+      id: '/api/public/hooks/automations'
+      path: '/api/public/hooks/automations'
+      fullPath: '/api/public/hooks/automations'
+      preLoaderRoute: typeof ApiPublicHooksAutomationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -462,6 +483,7 @@ const rootRouteChildren: RootRouteChildren = {
   NdaTokenRoute: NdaTokenRoute,
   RescheduleTokenRoute: RescheduleTokenRoute,
   BookIndexRoute: BookIndexRoute,
+  ApiPublicHooksAutomationsRoute: ApiPublicHooksAutomationsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
