@@ -507,6 +507,10 @@ export type Database = {
         Args: { p_reason: string; p_token: string }
         Returns: string
       }
+      check_job_token: {
+        Args: { p_name: string; p_token: string }
+        Returns: boolean
+      }
       confirm_attendance: { Args: { p_token: string }; Returns: string }
       confirm_booking: {
         Args: { p_booking_id: string; p_code: string }
