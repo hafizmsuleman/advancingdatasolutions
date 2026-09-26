@@ -15,6 +15,13 @@
       "when": 1790462723822,
       "tag": "0001_automations_lock",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790462874933,
+      "tag": "0002_private_cron_secret",
+      "breakpoints": true
     }
   ]
 }
