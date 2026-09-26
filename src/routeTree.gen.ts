@@ -13,6 +13,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as BookIndexRouteImport } from './routes/book.index'
 import { Route as BookSessionRouteImport } from './routes/book.session'
+import { Route as BookSlotRouteImport } from './routes/book.slot'
+import { Route as BookVerifyRouteImport } from './routes/book.verify'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,17 +36,31 @@ const BookSessionRoute = BookSessionRouteImport.update({
   path: '/book/session',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BookSlotRoute = BookSlotRouteImport.update({
+  id: '/book/slot',
+  path: '/book/slot',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookVerifyRoute = BookVerifyRouteImport.update({
+  id: '/book/verify',
+  path: '/book/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
   '/book/session': typeof BookSessionRoute
+  '/book/slot': typeof BookSlotRoute
+  '/book/verify': typeof BookVerifyRoute
   '/book/': typeof BookIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
   '/book/session': typeof BookSessionRoute
+  '/book/slot': typeof BookSlotRoute
+  '/book/verify': typeof BookVerifyRoute
   '/book': typeof BookIndexRoute
 }
 export interface FileRoutesById {
@@ -52,20 +68,38 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/privacy': typeof PrivacyRoute
   '/book/session': typeof BookSessionRoute
+  '/book/slot': typeof BookSlotRoute
+  '/book/verify': typeof BookVerifyRoute
   '/book/': typeof BookIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/privacy' | '/book/session' | '/book/'
+  fullPaths:
+    | '/'
+    | '/privacy'
+    | '/book/session'
+    | '/book/slot'
+    | '/book/verify'
+    | '/book/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/privacy' | '/book/session' | '/book'
-  id: '__root__' | '/' | '/privacy' | '/book/session' | '/book/'
+  to:
+    '/' | '/privacy' | '/book/session' | '/book/slot' | '/book/verify' | '/book'
+  id:
+    | '__root__'
+    | '/'
+    | '/privacy'
+    | '/book/session'
+    | '/book/slot'
+    | '/book/verify'
+    | '/book/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PrivacyRoute: typeof PrivacyRoute
   BookSessionRoute: typeof BookSessionRoute
+  BookSlotRoute: typeof BookSlotRoute
+  BookVerifyRoute: typeof BookVerifyRoute
   BookIndexRoute: typeof BookIndexRoute
 }
 
@@ -99,6 +133,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BookSessionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/book/slot': {
+      id: '/book/slot'
+      path: '/book/slot'
+      fullPath: '/book/slot'
+      preLoaderRoute: typeof BookSlotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/book/verify': {
+      id: '/book/verify'
+      path: '/book/verify'
+      fullPath: '/book/verify'
+      preLoaderRoute: typeof BookVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -106,6 +154,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PrivacyRoute: PrivacyRoute,
   BookSessionRoute: BookSessionRoute,
+  BookSlotRoute: BookSlotRoute,
+  BookVerifyRoute: BookVerifyRoute,
   BookIndexRoute: BookIndexRoute,
 }
 export const routeTree = rootRouteImport
