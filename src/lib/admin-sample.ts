@@ -148,11 +148,18 @@ export const SAMPLE_OUTBOX: OutboxEmail[] = [
 
 export const STATS = { bookingsThisWeek: 6, ndasSigned: 4, emailsAutomated: 37, hoursSaved: 3.4 };
 
-export function fmtIn(iso: string, tz: string, opts: Intl.DateTimeFormatOptions = {}) {
-  return new Intl.DateTimeFormat("en-GB", {
+// Built from parts so server and browser render identical text.
+export function fmtIn(iso: string, tz: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: tz, weekday: "short", day: "numeric", month: "short",
-    hour: "numeric", minute: "2-digit", hour12: true, ...opts,
-  }).format(new Date(iso));
+    hour: "numeric", minute: "2-digit", hour12: true,
+  }).formatToParts(new Date(iso));
+  const g = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  return `${g("weekday")} ${g("day")} ${g("month")}, ${g("hour")}:${g("minute")} ${g("dayPeriod").toLowerCase()}`;
+}
+
+export function dayKeyIn(iso: string, tz: string) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
 }
 
 export function tzLabel(tz: string) {

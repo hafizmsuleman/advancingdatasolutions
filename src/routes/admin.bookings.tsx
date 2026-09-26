@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Panel, Pill, PageIntro, DemoNote, btn, field, th, td } from "@/components/admin-ui";
-import { SAMPLE_BOOKINGS, TEAM_TZ, fmtIn, tzLabel, type AdminBooking, type BookingStatus } from "@/lib/admin-sample";
+import { SAMPLE_BOOKINGS, TEAM_TZ, fmtIn, dayKeyIn, tzLabel, type AdminBooking, type BookingStatus } from "@/lib/admin-sample";
 import { BookingDrawer } from "@/components/booking-drawer";
 
 export const Route = createFileRoute("/admin/bookings")({
@@ -34,7 +34,7 @@ function Bookings() {
   const shown = rows
     .filter((b) => status === "all" || b.status === status)
     .filter((b) => area === "all" || b.area === area)
-    .filter((b) => !date || fmtIn(b.start, TEAM_TZ, { year: "numeric", month: "2-digit", day: "2-digit", weekday: undefined, hour: undefined, minute: undefined }).split("/").reverse().join("-") === date)
+    .filter((b) => !date || dayKeyIn(b.start, TEAM_TZ) === date)
     .sort((a, b) => a.start.localeCompare(b.start));
 
   const set = (id: string, s: BookingStatus, msg: string) => {
