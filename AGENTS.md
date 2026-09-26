@@ -12,3 +12,5 @@
 - Admin pages use the browser client under RLS (is_admin()); /admin layout is ssr:false with a client beforeLoad gate.
 - Until email sending (F12), all emails are queued as rows in `messages` (status scheduled); verification codes are readable in Admin → Outbox.
 - Slot rules live in src/lib/slots.ts constants and are re-checked server-side in requestBooking/rescheduleBooking.
+- Automations live in src/lib/automations.server.ts (runAutomations), run by pg_cron every 5 min via /api/public/hooks/automations (token checked with check_job_token against private.job_secrets) and by Admin → Settings "Run now"; single-flight via settings.automation_lock_until — why: one code path for scheduled and manual runs.
+- Reminders (nda_reminder, reminder_24h, reminder_1h) are queued with future scheduled_utc at confirm/reschedule; reschedule/cancel cancel future ones — why: Outbox shows what's coming and the sender only picks due rows.
