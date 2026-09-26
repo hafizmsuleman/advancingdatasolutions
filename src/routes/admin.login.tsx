@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import logoUrl from "@/assets/ads-logo-horizontal.svg";
+import logoAsset from "@/assets/ads-logo-horizontal.svg.asset.json";
+
+const logoUrl = logoAsset.url;
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

@@ -16,7 +16,9 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import logoUrl from "@/assets/ads-logo-horizontal.svg";
+import logoAsset from "@/assets/ads-logo-horizontal.svg.asset.json";
+
+const logoUrl = logoAsset.url;
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin")({
