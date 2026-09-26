@@ -14,7 +14,7 @@ Build order: frontend-first with sample data, then Lovable Cloud (schema.sql pas
 - [x] F9 Admin pages (dashboard, bookings, leads, outbox, inbox, settings)
 
 ## Phase 2 — Lovable Cloud
-- [ ] F10 Enable Cloud + apply user-provided schema.sql exactly
+- [x] F10 Enable Cloud + apply user-provided schema.sql exactly
 - [ ] F11 Booking RPCs (create_booking_request, create_verification, confirm_booking, token RPCs, rate limits)
 - [ ] F12 Email sending (notify.advancingdatasolutions.com, reply-to contact@, Outbox logging)
 - [ ] F13 Automations job (5-min + Run now, reminders, release, nudges)
