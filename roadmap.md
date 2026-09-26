@@ -20,7 +20,7 @@ Build order: frontend-first with sample data, then Lovable Cloud (schema.sql pas
 - [x] F13 Automations job (5-min + Run now, reminders, release, nudges)
 - [ ] F14 Admin auth + inbox AI (one admin: contact@advancingdatasolutions.com, manual creation)
 - [x] F15 Google Calendar
-- [ ] F16 Demo mode & cleanup jobs
+- [x] F16 Demo mode & cleanup jobs
 
 ## Phase 3 — Launch
 - [ ] F17 Polish pass, security scan, publish, custom domain book.advancingdatasolutions.com, set project public
