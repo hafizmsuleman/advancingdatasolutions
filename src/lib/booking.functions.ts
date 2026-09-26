@@ -6,6 +6,7 @@ import { z } from "zod";
 import { AREAS, BUDGETS, PLATFORMS, TIMELINES } from "./booking-draft";
 import { BUDGET_TO_DB, NEED_TO_DB, PLATFORM_TO_DB } from "./enums";
 import { generateSlots, type Busy } from "./slots";
+import { cancelPendingReminders, scheduleReminders } from "./automations.server";
 
 const DISPOSABLE = ["mailinator.com", "guerrillamail.com", "10minutemail.com", "tempmail.com", "temp-mail.org", "yopmail.com", "trashmail.com", "sharklasers.com", "getnada.com", "dispostable.com", "maildrop.cc", "throwawaymail.com"];
 const stripLinks = (s: string) => s.replace(/(https?:\/\/|www\.)\S+/gi, "").trim();
@@ -204,16 +205,20 @@ export const verifyCode = createServerFn({ method: "POST" })
       }
       return { result: r };
     }
-    const { data: b } = await db.from("bookings").select("id,manage_token,code,email,start_utc,length_min,client_tz,lead_id,leads(full_name,company)").eq("id", data.bookingId).single();
+    const { data: b } = await db.from("bookings").select("id,manage_token,code,email,start_utc,length_min,client_tz,lead_id,created_at,leads(full_name,company)").eq("id", data.bookingId).single();
     if (b) {
       const lead = b.leads as { full_name: string | null; company: string | null } | null;
       const when = new Intl.DateTimeFormat("en-GB", { timeZone: b.client_tz, dateStyle: "full", timeStyle: "short" }).format(Date.parse(b.start_utc));
       const { data: s } = await db.from("settings").select("fallback_meeting_link").eq("id", 1).single();
+      const origin = new URL(getRequest().url).origin;
+      const short = Date.parse(b.start_utc) - Date.parse(b.created_at) < 26 * 3600_000;
+      const attend = short ? `\n\nPlease confirm you can attend. If we don't hear from you 6 hours before the start, we'll release the time:\n${origin}/attend/${b.manage_token}` : "";
       await queueMessage(db, {
         type: "confirmation", to: b.email, bookingId: b.id, leadId: b.lead_id, minutes: 10,
         subject: `You're booked: Free Consultation (${b.length_min} min)`,
-        body: `Hi ${(lead?.full_name ?? "").split(" ")[0] || "there"},\n\nThanks for booking a free ${b.length_min}-minute consultation with our engineers. Your call is on ${when} (your time).\n\nMeeting link: ${s?.fallback_meeting_link ?? ""}\nReference: ${b.code}\n\nSpeak soon,\nAdvancing Data Solutions`,
+        body: `Hi ${(lead?.full_name ?? "").split(" ")[0] || "there"},\n\nThanks for booking a free ${b.length_min}-minute consultation with our engineers. Your call is on ${when} (your time).\n\nMeeting link: ${s?.fallback_meeting_link ?? ""}\nReference: ${b.code}${attend}\n\nSpeak soon,\nAdvancing Data Solutions`,
       });
+      await scheduleReminders(db, { ...b, full_name: lead?.full_name ?? null }, origin, { nda: true });
       await queueMessage(db, {
         type: "admin_new_booking", to: "contact@advancingdatasolutions.com", bookingId: b.id, leadId: b.lead_id,
         subject: `New booking: ${lead?.company ?? b.email} (${b.length_min} min)`,
