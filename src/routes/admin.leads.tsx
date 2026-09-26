@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Send, Ban, BadgeCheck } from "lucide-react";
 import { Panel, Pill, PageIntro, btn, th, td } from "@/components/admin-ui";
-import { TEAM_TZ, fmtIn, type LeadStatus } from "@/lib/admin-sample";
+import { browserTimeZone, fmtIn, type LeadStatus } from "@/lib/admin-sample";
 import { useAdminLeads, useInvalidateAdmin } from "@/lib/admin-data";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -63,7 +63,7 @@ function Leads() {
                 <td className={td}>{l.source}</td>
                 <td className={td}>{l.area}</td>
                 <td className={td}>{l.verified ? <Pill tone="success" icon={BadgeCheck}>Verified</Pill> : <Pill tone="neutral">No</Pill>}</td>
-                <td className={td + " tabular-nums"}>{l.lastNudge ? <>{fmtIn(l.lastNudge, TEAM_TZ)} <span className="text-xs text-muted-foreground">({l.nudges}/2)</span></> : <span className="text-muted-foreground">—</span>}</td>
+                <td className={td + " tabular-nums"}>{l.lastNudge ? <>{fmtIn(l.lastNudge, browserTimeZone())} <span className="text-xs text-muted-foreground">({l.nudges}/2)</span></> : <span className="text-muted-foreground">—</span>}</td>
                 <td className={td}>
                   <div className="flex justify-end gap-1.5">
                     <button className={btn} disabled={!l.verified || l.status === "blocked" || l.status === "booked"}

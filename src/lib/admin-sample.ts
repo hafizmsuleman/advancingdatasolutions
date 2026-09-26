@@ -1,6 +1,10 @@
 // Sample data for the admin UI (Phase 1). Replaced by Lovable Cloud data in Phase 2.
 export const TEAM_TZ = "Asia/Karachi";
 
+export function browserTimeZone() {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+}
+
 export type Area = "Data" | "AI" | "Web";
 export type BookingStatus = "confirmed" | "completed" | "no_show" | "cancelled" | "released";
 
@@ -163,5 +167,6 @@ export function dayKeyIn(iso: string, tz: string) {
 }
 
 export function tzLabel(tz: string) {
-  return tz.split("/").pop()!.replace(/_/g, " ");
+  if (tz === TEAM_TZ) return "UTC+05:00";
+  return (tz.split("/").pop() ?? tz).replace(/_/g, " ");
 }

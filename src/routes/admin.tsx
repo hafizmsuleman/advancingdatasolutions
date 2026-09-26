@@ -45,7 +45,7 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { title: "Overnight", to: "/admin", icon: LayoutDashboard, exact: true },
+  { title: "Dashboard", to: "/admin", icon: LayoutDashboard, exact: true },
   { title: "Bookings", to: "/admin/bookings", icon: CalendarDays },
   { title: "Leads", to: "/admin/leads", icon: Users },
   { title: "Outbox", to: "/admin/outbox", icon: Mail },
