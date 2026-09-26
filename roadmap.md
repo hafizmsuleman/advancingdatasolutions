@@ -11,7 +11,7 @@ Build order: frontend-first with sample data, then Lovable Cloud (schema.sql pas
 - [ ] F6 NDA page `/nda/:token` (placeholder mutual NDA, lawyer-review label)
 - [ ] F7 Manage pages `/attend/:token`, `/reschedule/:token`, `/cancel/:token`
 - [x] F8 Admin shell & login screen
-- [ ] F9 Admin pages (dashboard, bookings, leads, outbox, inbox, settings)
+- [x] F9 Admin pages (dashboard, bookings, leads, outbox, inbox, settings)
 
 ## Phase 2 — Lovable Cloud
 - [ ] F10 Enable Cloud + apply user-provided schema.sql exactly

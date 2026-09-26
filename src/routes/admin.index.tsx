@@ -1,17 +1,78 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AdminPlaceholder } from "@/components/admin-placeholder";
+import { useState } from "react";
+import { CalendarDays, FileSignature, Mail, Timer, Inbox } from "lucide-react";
+import { Badges, BookingDrawer } from "@/components/booking-drawer";
+import { Panel, PageIntro, DemoNote } from "@/components/admin-ui";
+import { SAMPLE_BOOKINGS, STATS, TEAM_TZ, fmtIn, tzLabel, type AdminBooking } from "@/lib/admin-sample";
 
 export const Route = createFileRoute("/admin/")({
   head: () => ({
     meta: [
       { title: "Overnight — Admin — Advancing Data Solutions" },
+      { name: "description", content: "Overnight bookings and automation stats." },
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: () => (
-    <AdminPlaceholder
-      title="Overnight"
-      description="Overnight stats and new bookings with badges will appear here."
-    />
-  ),
+  component: Overnight,
 });
+
+function Overnight() {
+  const [open, setOpen] = useState<AdminBooking | null>(null);
+  const fresh = SAMPLE_BOOKINGS.filter((b) => b.isNew && b.status === "confirmed");
+  const stats = [
+    { label: "Bookings this week", value: STATS.bookingsThisWeek, icon: CalendarDays },
+    { label: "NDAs signed", value: STATS.ndasSigned, icon: FileSignature },
+    { label: "Emails automated", value: STATS.emailsAutomated, icon: Mail },
+    { label: "Hours saved", value: STATS.hoursSaved.toFixed(1), icon: Timer },
+  ];
+  return (
+    <div className="mx-auto max-w-6xl">
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {stats.map((s) => (
+          <Panel key={s.label} className="p-4">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              {s.label}
+              <s.icon className="h-4 w-4" aria-hidden />
+            </div>
+            <div className="mt-1 text-2xl font-semibold tabular-nums tracking-tight text-foreground">{s.value}</div>
+          </Panel>
+        ))}
+      </div>
+
+      <PageIntro title="New bookings">Booked since you last checked.</PageIntro>
+      {fresh.length === 0 ? (
+        <Panel className="flex flex-col items-center p-10 text-center">
+          <Inbox className="h-8 w-8 text-muted-foreground" aria-hidden />
+          <p className="mt-2 font-medium text-foreground">All caught up</p>
+          <p className="text-sm text-muted-foreground">No new bookings overnight.</p>
+        </Panel>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2">
+          {fresh.map((b) => (
+            <button key={b.id} onClick={() => setOpen(b)} className="text-left">
+              <Panel className="h-full p-4 transition-colors hover:border-primary/40">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="font-semibold text-foreground">{b.company}</div>
+                    <div className="text-xs text-muted-foreground">{b.role} · {b.country}</div>
+                  </div>
+                  <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium tabular-nums">{b.duration} min</span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                  <span className="text-muted-foreground">Area / platform</span><span>{b.area} · {b.platform}</span>
+                  <span className="text-muted-foreground">Need</span><span>{b.need}</span>
+                  <span className="text-muted-foreground">Budget</span><span className="tabular-nums">{b.budget}</span>
+                  <span className="text-muted-foreground">Team (PKT)</span><span className="tabular-nums">{fmtIn(b.start, TEAM_TZ)}</span>
+                  <span className="text-muted-foreground">Client ({tzLabel(b.clientTz)})</span><span className="tabular-nums">{fmtIn(b.start, b.clientTz)}</span>
+                </div>
+                <div className="mt-3"><Badges b={b} /></div>
+              </Panel>
+            </button>
+          ))}
+        </div>
+      )}
+      <DemoNote />
+      <BookingDrawer b={open} onClose={() => setOpen(null)} />
+    </div>
+  );
+}
