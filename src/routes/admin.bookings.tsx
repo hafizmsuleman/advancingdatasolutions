@@ -42,6 +42,8 @@ function Bookings() {
 
   const set = (id: string, s: BookingStatus, msg: string) => {
     const patch = s === "cancelled" ? { status: s, cancelled_at: new Date().toISOString(), cancel_reason: "Cancelled by our team" } : { status: s };
+    if (s !== "completed") void supabase.from("messages").update({ status: "cancelled" }).eq("booking_id", id).eq("status", "scheduled")
+      .in("type", ["nda_reminder", "reminder_24h", "reminder_1h"]).gt("scheduled_utc", new Date().toISOString());
     supabase.from("bookings").update(patch).eq("id", id).then(({ error }) => {
       if (error) { toast.error("Couldn't update the booking"); return; }
       toast.success(msg);

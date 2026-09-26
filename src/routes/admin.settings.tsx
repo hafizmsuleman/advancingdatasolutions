@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { runAutomationsNow } from "@/lib/automations.functions";
 import { useInvalidateAdmin } from "@/lib/admin-data";
 import { BUDGET_LABEL, BUDGET_TO_DB } from "@/lib/enums";
 import { toast } from "sonner";
@@ -54,6 +56,9 @@ function SettingsPage() {
   const [offset, setOffset] = useState(0);
   const [availabilityTz, setAvailabilityTz] = useState("Asia/Karachi");
   const invalidate = useInvalidateAdmin();
+  const runFn = useServerFn(runAutomationsNow);
+  const [running, setRunning] = useState(false);
+  const [lastRun, setLastRun] = useState<{ at: string; summary: string } | null>(null);
   const WD = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
   const hhmm = (t: string) => (t.startsWith("24") ? "24:00" : t.slice(0, 5));
 
@@ -65,6 +70,7 @@ function SettingsPage() {
         supabase.from("blocked_senders").select("value").order("created_at"),
       ]);
       if (st) {
+        if (st.automation_last_run_at) setLastRun({ at: st.automation_last_run_at, summary: st.automation_last_summary ?? "" });
         setN({ buffer: st.buffer_min, cap: st.daily_cap, notice: st.min_notice_hours, flag: st.attendance_flag_hours, release: st.attendance_release_hours });
         setThreshold(BUDGET_LABEL[st.budget_threshold]);
         setLink(st.fallback_meeting_link ?? "");
@@ -105,6 +111,18 @@ function SettingsPage() {
     const { error } = await supabase.from("settings").update({ demo_mode: on }).eq("id", 1);
     if (error) { toast.error("Couldn't change demo mode"); return; }
     setDemo(on); invalidate();
+  }
+  async function runNow() {
+    setRunning(true);
+    try {
+      const r = await runFn();
+      if (r.skipped) toast.message("A run is already in progress");
+      else toast.success("Automations ran");
+      const { data: st } = await supabase.from("settings").select("automation_last_run_at, automation_last_summary").eq("id", 1).single();
+      if (st?.automation_last_run_at) setLastRun({ at: st.automation_last_run_at, summary: st.automation_last_summary ?? "" });
+      invalidate();
+    } catch { toast.error("Couldn't run automations"); }
+    setRunning(false);
   }
   async function setClock(h: number) {
     const { error } = await supabase.from("settings").update({ virtual_clock_offset_min: h * 60 }).eq("id", 1);
@@ -177,6 +195,15 @@ function SettingsPage() {
           <input id="nb" className={field + " flex-1"} placeholder="name@company.com or domain.com" value={newBlock} onChange={(e) => setNewBlock(e.target.value)} />
           <button className={btn + " h-9"} type="submit">Add</button>
         </form>
+      </Section>
+
+      <Section title="Automations" desc="Reminders, attendance release, nudges and clean-up run every 5 minutes.">
+        <div className="flex flex-wrap items-center gap-3">
+          <button className={btn + " h-9"} disabled={running} onClick={runNow}>{running ? "Running…" : "Run now"}</button>
+          <span className="text-sm text-muted-foreground">
+            {lastRun ? <>Last run <span className="tabular-nums">{new Date(lastRun.at).toLocaleString()}</span>{lastRun.summary ? ` · ${lastRun.summary}` : ""}</> : "Not run yet"}
+          </span>
+        </div>
       </Section>
 
       <Section title="Demo mode" desc="Shows sample bookings and leads. Demo emails go only to the admin; no calendar events are created.">
