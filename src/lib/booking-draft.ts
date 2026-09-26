@@ -18,7 +18,7 @@ export const NEEDS: Record<AreaId, readonly string[]> = {
 export const TIMELINES = ["Under 1 month", "1–3 months", "3–6 months", "6+ months", "Not sure"] as const;
 export const BUDGETS = ["Under $5k", "$5k–20k", "$20k–50k", "Over $50k", "Not sure"] as const;
 
-export const PRIVACY_URL = "https://advancingdatasolutions.com/privacy-policy";
+export const PRIVACY_URL = "/privacy";
 
 const noLinks = (v: string) => !/(https?:\/\/|www\.)/i.test(v);
 
