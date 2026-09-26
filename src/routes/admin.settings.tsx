@@ -52,6 +52,7 @@ function SettingsPage() {
   const [newBlock, setNewBlock] = useState("");
   const [demo, setDemo] = useState(false);
   const [offset, setOffset] = useState(0);
+  const [availabilityTz, setAvailabilityTz] = useState("Asia/Karachi");
   const invalidate = useInvalidateAdmin();
   const WD = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
   const hhmm = (t: string) => (t.startsWith("24") ? "24:00" : t.slice(0, 5));
@@ -69,6 +70,7 @@ function SettingsPage() {
         setLink(st.fallback_meeting_link ?? "");
         setDemo(st.demo_mode);
         setOffset(Math.round(st.virtual_clock_offset_min / 60));
+        setAvailabilityTz(st.team_timezone);
       }
       if (win) setDays(DAYS.map((d, i) => {
         const w = win.find((x) => x.weekday === WD[i]);
@@ -112,11 +114,15 @@ function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
-      <PageIntro title="Settings" actions={<button className={btnPrimary} onClick={saveAll}>Save changes</button>}>
-        Team time zone: Asia/Karachi (never shown to clients).
-      </PageIntro>
+      <PageIntro title="Settings" actions={<button className={btnPrimary} onClick={saveAll}>Save changes</button>} />
 
-      <Section title="Availability" desc="Weekly windows in team time. Slots start every 30 minutes.">
+      <Section title="Availability" desc="Availability hours are in your time zone. Slots start every 30 minutes.">
+        <div className="mb-3">
+          <label htmlFor="availability-time-zone" className="block text-xs text-muted-foreground">Your time zone</label>
+          <select id="availability-time-zone" className={field + " mt-1"} value={availabilityTz} disabled>
+            <option value={availabilityTz}>{availabilityTz === "Asia/Karachi" ? "UTC+05:00" : new Intl.DateTimeFormat("en-US", { timeZone: availabilityTz, timeZoneName: "long" }).formatToParts(new Date()).find((part) => part.type === "timeZoneName")?.value ?? "Your time zone"}</option>
+          </select>
+        </div>
         <div className="divide-y divide-border">
           {days.map((row, i) => (
             <div key={row.d} className="flex flex-wrap items-center gap-3 py-2">
