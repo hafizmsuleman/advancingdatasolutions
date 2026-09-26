@@ -167,5 +167,6 @@ export function dayKeyIn(iso: string, tz: string) {
 }
 
 export function tzLabel(tz: string) {
-  return tz.split("/").pop()!.replace(/_/g, " ");
+  if (tz === TEAM_TZ) return "UTC+05:00";
+  return (tz.split("/").pop() ?? tz).replace(/_/g, " ");
 }

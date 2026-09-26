@@ -120,7 +120,7 @@ function SettingsPage() {
         <div className="mb-3">
           <label htmlFor="availability-time-zone" className="block text-xs text-muted-foreground">Your time zone</label>
           <select id="availability-time-zone" className={field + " mt-1"} value={availabilityTz} disabled>
-            <option value={availabilityTz}>{availabilityTz === "Asia/Karachi" ? "UTC+05:00" : new Intl.DateTimeFormat("en-US", { timeZone: availabilityTz, timeZoneName: "long" }).formatToParts(new Date()).find((part) => part.type === "timeZoneName")?.value ?? "Your time zone"}</option>
+            <option value={availabilityTz}>{availabilityTz === "Asia/Karachi" ? "Islamabad (UTC+05:00)" : new Intl.DateTimeFormat("en-US", { timeZone: availabilityTz, timeZoneName: "long" }).formatToParts(new Date()).find((part) => part.type === "timeZoneName")?.value ?? "Your time zone"}</option>
           </select>
         </div>
         <div className="divide-y divide-border">

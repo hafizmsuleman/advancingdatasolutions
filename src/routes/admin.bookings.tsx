@@ -74,7 +74,7 @@ function Bookings() {
           <thead className="border-b border-border bg-muted/50">
             <tr>
               <th className={th}>Client</th><th className={th}>Area</th><th className={th}>Your time</th>
-              <th className={th}>Client's time (City)</th><th className={th}>Length</th><th className={th}>Status</th><th className={th}><span className="sr-only">Actions</span></th>
+              <th className={th}>Client's time</th><th className={th}>Length</th><th className={th}>Status</th><th className={th}><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -89,7 +89,7 @@ function Bookings() {
                 </td>
                 <td className={td}>{b.area}</td>
                 <td className={td + " tabular-nums"}>{fmtIn(b.start, browserTimeZone())}</td>
-                <td className={td + " tabular-nums"}>{fmtIn(b.start, b.clientTz)}<div className="text-xs text-muted-foreground">{tzLabel(b.clientTz)}</div></td>
+                <td className={td + " tabular-nums"}>{fmtIn(b.start, b.clientTz)}<div className="text-xs text-muted-foreground">Client's time ({tzLabel(b.clientTz)})</div></td>
                 <td className={td + " tabular-nums"}>{b.duration} min</td>
                 <td className={td}><Pill tone={STATUS[b.status].tone}>{STATUS[b.status].label}</Pill></td>
                 <td className={td}>
