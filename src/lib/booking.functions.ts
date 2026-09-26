@@ -251,11 +251,22 @@ export const rescheduleBooking = createServerFn({ method: "POST" })
       client_tz: data.timeZone, status: "confirmed", attendance_confirmed_at: null,
     }).eq("id", b.id);
     if (error) return { error: "slot_taken" as const };
+    const origin = new URL(getRequest().url).origin;
+    const { data: full } = await db.from("bookings").select("manage_token, leads(full_name), ndas(id)").eq("id", b.id).single();
+    const signed = Array.isArray(full?.ndas) ? full.ndas.length > 0 : !!full?.ndas;
+    const short = start - Date.now() < 26 * 3600_000;
+    const attend = short ? `\n\nPlease confirm you can attend. If we don't hear from you 6 hours before the start, we'll release the time:\n${origin}/attend/${data.token}` : "";
+    await cancelPendingReminders(db, b.id);
     await queueMessage(db, {
       type: "reschedule_notice", to: b.email, bookingId: b.id, leadId: b.lead_id,
       subject: "Your consultation has moved",
-      body: `Your consultation ${b.code} is now on ${new Intl.DateTimeFormat("en-GB", { timeZone: data.timeZone, dateStyle: "full", timeStyle: "short" }).format(start)} (your time). The meeting link stays the same.\n\nAdvancing Data Solutions`,
+      body: `Your consultation ${b.code} is now on ${new Intl.DateTimeFormat("en-GB", { timeZone: data.timeZone, dateStyle: "full", timeStyle: "short" }).format(start)} (your time). The meeting link stays the same.${attend}\n\nAdvancing Data Solutions`,
     });
+    await scheduleReminders(db, {
+      id: b.id, email: b.email, code: b.code, start_utc: new Date(start).toISOString(), length_min: b.length_min,
+      client_tz: data.timeZone, manage_token: data.token, lead_id: b.lead_id, created_at: new Date().toISOString(),
+      full_name: (full?.leads as { full_name: string | null } | null)?.full_name ?? null,
+    }, origin, { nda: !signed });
     return { ok: true as const };
   });
 
@@ -266,6 +277,7 @@ export const cancelBooking = createServerFn({ method: "POST" })
     const { data: r } = await db.rpc("cancel_booking_by_token", { p_token: data.token, p_reason: stripLinks(data.reason).slice(0, 300) });
     if (r !== "cancelled") return { error: "not_found" as const };
     const { data: b } = await db.from("bookings").select("id,email,code,lead_id").eq("manage_token", data.token).single();
+    if (b) await cancelPendingReminders(db, b.id);
     if (b) await queueMessage(db, {
       type: "cancel_notice", to: b.email, bookingId: b.id, leadId: b.lead_id,
       subject: "Your consultation has been cancelled",
