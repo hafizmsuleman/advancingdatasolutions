@@ -200,6 +200,16 @@ export const verifyCode = createServerFn({ method: "POST" })
   .inputValidator((d: { bookingId: string; code: string }) => z.object({ bookingId: z.string().uuid(), code: z.string().regex(/^\d{6}$/) }).parse(d))
   .handler(async ({ data }) => {
     const db = await admin();
+    // Live calendar re-check right before confirming: reject if the time now clashes.
+    const { data: pend } = await db.from("bookings").select("status,start_utc,end_utc").eq("id", data.bookingId).single();
+    if (pend?.status === "pending_verification") {
+      const s = Date.parse(pend.start_utc), e = Date.parse(pend.end_utc), buf = 15 * 60_000;
+      const clash = (await loadBusy(db)).some((x) => s < x.end + buf && e > x.start - buf);
+      if (clash) {
+        await db.from("bookings").update({ status: "cancelled", cancelled_at: new Date().toISOString(), cancel_reason: "slot_taken" }).eq("id", data.bookingId);
+        return { result: "slot_taken" as const };
+      }
+    }
     const { data: result, error } = await db.rpc("confirm_booking", { p_booking_id: data.bookingId, p_code: data.code });
     if (error) { console.error(error); return { result: "server" as const }; }
     const r = result as "confirmed" | "wrong_code" | "expired" | "too_many_attempts" | "slot_taken" | "email_has_active_booking";

@@ -8,7 +8,6 @@ import { HORIZON_DAYS } from "./slots";
 type DB = SupabaseClient<Database>;
 const GATEWAY = "https://connector-gateway.lovable.dev/google_calendar/calendar/v3";
 const CAL = "primary";
-const CACHE_MS = 5 * 60_000;
 
 export type CalBusy = { start: number; end: number; eventId: string; calendar: true };
 
@@ -29,11 +28,11 @@ async function gcal(path: string, init: RequestInit = {}) {
   return res.status === 204 ? null : res.json();
 }
 
+// Last good read — used only as a fallback when Google can't be reached.
 let cache: { at: number; data: CalBusy[] } | null = null;
 
-/** Busy events on the team calendar for the booking horizon (cached 5 minutes). */
+/** Busy events on the team calendar for the booking horizon — always a live read. */
 export async function calendarBusy(): Promise<CalBusy[]> {
-  if (cache && Date.now() - cache.at < CACHE_MS) return cache.data;
   const now = Date.now();
   const q = new URLSearchParams({
     timeMin: new Date(now - 86400_000).toISOString(),
