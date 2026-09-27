@@ -17,6 +17,7 @@ async function gcal(path: string, init: RequestInit = {}) {
   if (!lk || !ck) throw new Error("Google Calendar is not connected");
   const res = await fetch(`${GATEWAY}${path}`, {
     ...init,
+    signal: AbortSignal.timeout(15_000),
     headers: { Authorization: `Bearer ${lk}`, "X-Connection-Api-Key": ck, "Content-Type": "application/json", ...(init.headers ?? {}) },
   });
   if (!res.ok) {
