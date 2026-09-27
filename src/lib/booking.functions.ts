@@ -1,3 +1,4 @@
+import { emailWhen } from "@/lib/time-zone-label";
 // Public backend functions for the booking flow. They run on the server with the
 import { SITE_URL } from "@/lib/site";
 // service role; the browser never touches tables or the privileged SQL functions.
@@ -222,7 +223,9 @@ export const verifyCode = createServerFn({ method: "POST" })
       const { data: pend } = await db.from("bookings").select("start_utc,end_utc").eq("id", data.bookingId).single();
       if (pend) {
         const s = Date.parse(pend.start_utc), e = Date.parse(pend.end_utc), buf = 15 * 60_000;
-        const clash = (await loadBusy(db)).some((x) => s < x.end + buf && e > x.start - buf);
+        const { data: own } = await db.from("bookings").select("manage_token").eq("id", data.bookingId).single();
+        // Exclude this booking itself: it is already confirmed at this point.
+        const clash = (await loadBusy(db, own?.manage_token)).some((x) => s < x.end + buf && e > x.start - buf);
         if (clash) {
           await db.from("bookings").update({ status: "cancelled", cancelled_at: new Date().toISOString(), cancel_reason: "slot_taken" }).eq("id", data.bookingId);
           await cancelPendingReminders(db, data.bookingId);
@@ -240,7 +243,7 @@ export const verifyCode = createServerFn({ method: "POST" })
     const { data: b } = await db.from("bookings").select("id,manage_token,code,email,start_utc,end_utc,length_min,client_tz,lead_id,created_at,leads(full_name,company,role,project_area,need,platform)").eq("id", data.bookingId).single();
     if (b) {
       const lead = b.leads as { full_name: string | null; company: string | null; role: string | null; project_area: string | null; need: string | null; platform: string | null } | null;
-      const when = new Intl.DateTimeFormat("en-GB", { timeZone: b.client_tz, dateStyle: "full", timeStyle: "short" }).format(Date.parse(b.start_utc));
+      const when = emailWhen(b.start_utc, b.client_tz);
       await syncBookingCalendar(db, b.id);
       const link = await meetingLink(db, b.id);
       const origin = SITE_URL;
@@ -248,11 +251,11 @@ export const verifyCode = createServerFn({ method: "POST" })
       const attend = short ? `\n\nPlease confirm you can attend. If we don't hear from you 6 hours before the start, we'll release the time:\n${origin}/attend/${b.manage_token}` : "";
       const cal = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("Free consultation with Advancing Data Solutions")}&dates=${gcal(Date.parse(b.start_utc))}/${gcal(Date.parse(b.end_utc))}&details=${encodeURIComponent(`Meeting link: ${link}\nManage your booking: ${origin}/booked/${b.manage_token}`)}&location=${encodeURIComponent(link)}`;
       const { data: st } = await db.from("settings").select("team_timezone").eq("id", 1).single();
-      const fmt = (tz: string) => new Intl.DateTimeFormat("en-GB", { timeZone: tz, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(Date.parse(b.start_utc));
+      const fmt = (tz: string) => emailWhen(b.start_utc, tz);
       await queueMessage(db, {
         type: "confirmation", to: b.email, bookingId: b.id, leadId: b.lead_id, minutes: 10,
         subject: `You're booked: Free Consultation (${b.length_min} min)`,
-        body: `Hi ${(lead?.full_name ?? "").split(" ")[0] || "there"},\n\nThanks for booking a free ${b.length_min}-minute consultation with our engineers. Your call is on ${when} (your time).\n\nMeeting link: ${link}${attend}\n\nAdd it to your calendar: ${cal}\n\nSo you can share details freely on the call, please sign our short mutual NDA before the consultation: ${origin}/nda/${b.manage_token}\n\nNeed another time? ${origin}/reschedule/${b.manage_token}\n\nCan't make it? ${origin}/cancel/${b.manage_token}${SIGN}`,
+        body: `Hi ${(lead?.full_name ?? "").split(" ")[0] || "there"},\n\nThanks for booking a free ${b.length_min}-minute consultation with our engineers. Your call is on ${when}.\n\nMeeting link: ${link}${attend}\n\nAdd it to your calendar: ${cal}\n\nSo you can share details freely on the call, please sign our short mutual NDA before the consultation: ${origin}/nda/${b.manage_token}\n\nNeed another time? ${origin}/reschedule/${b.manage_token}\n\nCan't make it? ${origin}/cancel/${b.manage_token}${SIGN}`,
       });
       await scheduleReminders(db, { ...b, full_name: lead?.full_name ?? null }, origin, { nda: true });
       await queueMessage(db, {
@@ -297,7 +300,7 @@ export const rescheduleBooking = createServerFn({ method: "POST" })
     await queueMessage(db, {
       type: "reschedule_notice", to: b.email, bookingId: b.id, leadId: b.lead_id,
       subject: "Your consultation has moved",
-      body: `Your consultation is now on ${new Intl.DateTimeFormat("en-GB", { timeZone: data.timeZone, dateStyle: "full", timeStyle: "short" }).format(start)} (your time). The meeting link stays the same.${attend}\n\nView your booking: ${origin}/booked/${data.token}${SIGN}`,
+      body: `Your consultation is now on ${emailWhen(start, data.timeZone)}. The meeting link stays the same.${attend}\n\nView your booking: ${origin}/booked/${data.token}${SIGN}`,
     });
     await scheduleReminders(db, {
       id: b.id, email: b.email, code: b.code, start_utc: new Date(start).toISOString(), length_min: b.length_min,

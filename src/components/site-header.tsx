@@ -23,7 +23,7 @@ export function SiteHeader() {
             Home
           </Link>
           <Link
-            to="/"
+            to="/book"
             className="inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
           >
             Book a call

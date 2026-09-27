@@ -1,3 +1,4 @@
+import { emailWhen } from "@/lib/time-zone-label";
 // Server-only: the automations job (every 5 min + "Run now"). All emails are queued in
 // `messages`; real sending picks up rows whose scheduled_utc has passed.
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -21,7 +22,7 @@ async function db(): Promise<DB> {
 
 const first = (n?: string | null) => (n ?? "").split(" ")[0] || "there";
 const when = (iso: string, tz: string) =>
-  new Intl.DateTimeFormat("en-GB", { timeZone: tz, dateStyle: "full", timeStyle: "short" }).format(Date.parse(iso));
+  emailWhen(iso, tz);
 
 type BookingForMail = {
   id: string; email: string; code: string; start_utc: string; length_min: number; client_tz: string;
@@ -50,18 +51,18 @@ export async function scheduleReminders(d: DB, b: BookingForMail, origin: string
   if (opts.nda && ndaAt < start) rows.push({
     type: "nda_reminder", booking_id: b.id, lead_id: b.lead_id, to_email: b.email, scheduled_utc: new Date(Math.max(ndaAt, now)).toISOString(),
     subject: "Please sign the NDA before your consultation",
-    body: `${hi}So you can share details freely on the call, please sign our short mutual NDA before your consultation on ${when(b.start_utc, b.client_tz)} (your time):\n${origin}/nda/${b.manage_token}${SIGN}`,
+    body: `${hi}So you can share details freely on the call, please sign our short mutual NDA before your consultation on ${when(b.start_utc, b.client_tz)}:\n${origin}/nda/${b.manage_token}${SIGN}`,
   });
   // Booked less than 26h ahead: the confirmation already carries the attendance link.
   if (start - Date.parse(b.created_at) >= 26 * H && start - 24 * H > now) rows.push({
     type: "reminder_24h", booking_id: b.id, lead_id: b.lead_id, to_email: b.email, scheduled_utc: new Date(start - 24 * H).toISOString(),
     subject: "Tomorrow: please confirm your consultation",
-    body: `${hi}Your free ${b.length_min}-minute consultation with our engineers is on ${when(b.start_utc, b.client_tz)} (your time).\n\nPlease confirm you can attend. If we don't hear from you 6 hours before the start, we'll release the time:\n${origin}/attend/${b.manage_token}\n\nNeed another time? ${origin}/reschedule/${b.manage_token}${SIGN}`,
+    body: `${hi}Your free ${b.length_min}-minute consultation with our engineers is on ${when(b.start_utc, b.client_tz)}.\n\nPlease confirm you can attend. If we don't hear from you 6 hours before the start, we'll release the time:\n${origin}/attend/${b.manage_token}\n\nNeed another time? ${origin}/reschedule/${b.manage_token}${SIGN}`,
   });
   if (start - H > now) rows.push({
     type: "reminder_1h", booking_id: b.id, lead_id: b.lead_id, to_email: b.email, scheduled_utc: new Date(start - H).toISOString(),
     subject: "Starting in 1 hour: your consultation",
-    body: `${hi}Your consultation starts in one hour, at ${when(b.start_utc, b.client_tz)} (your time).\n\nMeeting link: ${link}${SIGN}`,
+    body: `${hi}Your consultation starts in one hour, at ${when(b.start_utc, b.client_tz)}.\n\nMeeting link: ${link}${SIGN}`,
   });
   if (rows.length) await d.from("messages").insert(rows);
 }
@@ -165,7 +166,7 @@ export async function runAutomations(origin: string) {
         await queue(d, {
           type: "release_notice", booking_id: b.id, lead_id: b.lead_id, to_email: b.email,
           subject: "We've released your consultation time",
-          body: `Hi ${first(lead?.full_name)},\n\nWe didn't receive your attendance confirmation, so we've released your consultation on ${when(b.start_utc, b.client_tz)} (your time) for others to book.\n\nYou're welcome to choose a new time whenever suits you:\n${origin}/book${SIGN}`,
+          body: `Hi ${first(lead?.full_name)},\n\nWe didn't receive your attendance confirmation, so we've released your consultation on ${when(b.start_utc, b.client_tz)} for others to book.\n\nYou're welcome to choose a new time whenever suits you:\n${origin}/book${SIGN}`,
         }, b.is_demo);
         c.released++;
       } else if (left <= lease.attendance_flag_hours * H) {
