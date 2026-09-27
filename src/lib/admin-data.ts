@@ -96,13 +96,19 @@ export function useAdminStats() {
       let b = supabase.from("bookings").select("id", { count: "exact", head: true })
         .in("status", ["confirmed", "attendance_confirmed", "completed"]).gte("created_at", week);
       // Queued emails count once due; real sending will flip them to "sent".
-      let m = supabase.from("messages").select("minutes_saved").in("status", ["sent", "scheduled"])
+       let m = supabase.from("messages").select("id").in("status", ["sent", "scheduled"])
         .gte("scheduled_utc", week).lte("scheduled_utc", new Date().toISOString());
-      b = scope(b, v); m = scope(m, v);
+       let upcoming = supabase.from("bookings").select("id", { count: "exact", head: true })
+         .in("status", ["confirmed", "attendance_confirmed"]).gt("start_utc", new Date().toISOString());
+       let confirmed = supabase.from("bookings").select("id", { count: "exact", head: true })
+         .in("status", ["confirmed", "attendance_confirmed"])
+         .or("status.eq.attendance_confirmed,attendance_confirmed_at.not.is.null")
+         .gt("start_utc", new Date().toISOString());
+       b = scope(b, v); m = scope(m, v); upcoming = scope(upcoming, v); confirmed = scope(confirmed, v);
       const n = supabase.from("ndas").select("id, bookings!inner(is_demo)", { count: "exact", head: true }).gte("signed_at", week);
-      const [{ count: bookings }, { data: msgs }, { count: ndas }] = await Promise.all([b, m, v === "all" ? n : n.eq("bookings.is_demo", v === "demo")]);
-      const minutes = (msgs ?? []).reduce((s, x) => s + x.minutes_saved, 0);
-      return { bookingsThisWeek: bookings ?? 0, ndasSigned: ndas ?? 0, emailsAutomated: msgs?.length ?? 0, hoursSaved: minutes / 60 };
+       const [{ count: bookings }, { data: msgs }, { count: ndas }, { count: upcomingTotal }, { count: attendanceConfirmed }] = await Promise.all([b, m, v === "all" ? n : n.eq("bookings.is_demo", v === "demo"), upcoming, confirmed]);
+       return { bookingsThisWeek: bookings ?? 0, ndasSigned: ndas ?? 0, emailsAutomated: msgs?.length ?? 0,
+         upcomingTotal: upcomingTotal ?? 0, attendanceConfirmed: attendanceConfirmed ?? 0 };
     },
   });
 }

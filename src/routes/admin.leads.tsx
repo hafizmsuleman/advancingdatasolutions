@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SITE_URL } from "@/lib/site";
 import { toast } from "sonner";
 import { Send, Ban, BadgeCheck } from "lucide-react";
-import { Panel, Pill, PageIntro, DemoTag, btn, th, td } from "@/components/admin-ui";
+import { Panel, Pill, PageIntro, btn, th, td } from "@/components/admin-ui";
 import { browserTimeZone, fmtIn, type LeadStatus } from "@/lib/admin-sample";
-import { useAdminLeads, useDataView, useInvalidateAdmin } from "@/lib/admin-data";
+import { useAdminLeads, useInvalidateAdmin } from "@/lib/admin-data";
 import { blockSender, unblockSender } from "@/lib/admin-data";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -13,6 +13,10 @@ export const Route = createFileRoute("/admin/leads")({
     meta: [
       { title: "Leads — Admin — Advancing Data Solutions" },
       { name: "description", content: "Leads and follow-up nudges." },
+      { property: "og:title", content: "Leads — Admin — Advancing Data Solutions" },
+      { property: "og:description", content: "Leads and follow-up nudges." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -30,7 +34,6 @@ const STATUS: Record<LeadStatus, { label: string; tone: "success" | "info" | "wa
 
 function Leads() {
   const { data: rows = [] } = useAdminLeads();
-  const view = useDataView();
   const invalidate = useInvalidateAdmin();
   const resend = async (l: (typeof rows)[number]) => {
     const link = `${SITE_URL}/book?t=${l.bookingToken}`;
@@ -65,7 +68,7 @@ function Leads() {
             {rows.map((l) => (
               <tr key={l.id} className="hover:bg-muted/30">
                 <td className={td}>
-                  <div className="font-medium">{l.name} <span className="font-normal text-muted-foreground">· {l.company}</span><DemoTag show={view === "all" && l.isDemo} /></div>
+                   <div className="font-medium">{l.name} <span className="font-normal text-muted-foreground">· {l.company}</span></div>
                   <div className="text-xs text-muted-foreground">{l.email}</div>
                 </td>
                 <td className={td}><Pill tone={STATUS[l.status].tone}>{STATUS[l.status].label}</Pill></td>

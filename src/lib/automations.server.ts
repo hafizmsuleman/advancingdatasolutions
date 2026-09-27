@@ -58,7 +58,7 @@ export async function scheduleReminders(d: DB, b: BookingForMail, origin: string
   if (start - Date.parse(b.created_at) >= 26 * H && start - 24 * H > now) rows.push({
     type: "reminder_24h", booking_id: b.id, lead_id: b.lead_id, to_email: b.email, scheduled_utc: new Date(start - 24 * H).toISOString(),
     subject: "Tomorrow: please confirm your consultation",
-    body: `${hi}Your free ${b.length_min}-minute consultation with our engineers is on ${when(b.start_utc, b.client_tz)}.\n\nPlease confirm you can attend. If we don't hear from you 6 hours before the start, we'll release the time:\n${origin}/attend/${b.manage_token}\n\nNeed another time? ${origin}/reschedule/${b.manage_token}${SIGN}`,
+    body: `${hi}Your free ${b.length_min}-minute consultation with our engineers is on ${when(b.start_utc, b.client_tz)}.\n\nPlease confirm you can attend:\n${origin}/attend/${b.manage_token}\n\nNeed another time? ${origin}/reschedule/${b.manage_token}${SIGN}`,
   });
   if (start - H > now) rows.push({
     type: "reminder_1h", booking_id: b.id, lead_id: b.lead_id, to_email: b.email, scheduled_utc: new Date(start - H).toISOString(),
@@ -82,7 +82,7 @@ export async function runAutomations(origin: string) {
     .eq("id", 1).or(`automation_lock_until.is.null,automation_lock_until.lt.${nowIso}`).select("*").maybeSingle();
   if (!lease) return { skipped: true as const, summary: "Another run is in progress." };
 
-  const c = { sent: 0, sendFailed: 0, calendarRetried: 0, calendarFixed: 0, expired: 0, deleted: 0, cancelledReminders: 0, flagged: 0, released: 0, completed: 0, nudges: 0, cold: 0, demoReminders: 0, rsvpConfirmed: 0, rsvpDeclined: 0 };
+  const c = { sent: 0, sendFailed: 0, calendarRetried: 0, calendarFixed: 0, expired: 0, deleted: 0, cancelledReminders: 0, flagged: 0, completed: 0, nudges: 0, cold: 0, demoReminders: 0, rsvpConfirmed: 0, rsvpDeclined: 0 };
   try {
     const now = Date.now();
     const demoNow = now + lease.virtual_clock_offset_min * 60_000;
@@ -127,7 +127,7 @@ export async function runAutomations(origin: string) {
       c.cancelledReminders = drop.length;
     }
 
-    // 4. Active bookings: complete, release at 6h, flag at 12h.
+    // 4. Active bookings: complete after the call, flag missing attendance at 12h.
     let bq = d.from("bookings").select("id,code,email,start_utc,end_utc,length_min,client_tz,status,manage_token,lead_id,is_demo,attendance_confirmed_at,created_at,google_event_id, leads(full_name,company), ndas(id)")
       .in("status", ["confirmed", "attendance_confirmed"]).order("start_utc").limit(BATCH);
     if (!lease.demo_mode) bq = bq.eq("is_demo", false);
@@ -182,26 +182,14 @@ export async function runAutomations(origin: string) {
       }
       if (b.status !== "confirmed" || b.attendance_confirmed_at || start <= t) continue;
       const left = start - t;
-      if (left <= lease.attendance_release_hours * H) {
-        const { data: rel } = await d.from("bookings").update({ status: "released", released_at: nowIso })
-          .eq("id", b.id).eq("status", "confirmed").select("id");
-        if (!rel?.length) continue;
-        await cancelPendingReminders(d, b.id);
-        await syncBookingCalendar(d, b.id);
-        await queue(d, {
-          type: "release_notice", booking_id: b.id, lead_id: b.lead_id, to_email: b.email,
-          subject: "We've released your consultation time",
-          body: `Hi ${first(lead?.full_name)},\n\nWe didn't receive your attendance confirmation, so we've released your consultation on ${when(b.start_utc, b.client_tz)} for others to book.\n\nYou're welcome to choose a new time whenever suits you:\n${origin}/book${SIGN}`,
-        }, b.is_demo);
-        c.released++;
-      } else if (left <= lease.attendance_flag_hours * H) {
+      if (left <= lease.attendance_flag_hours * H) {
         const key = `Session start: ${b.start_utc}`;
         const { data: ex } = await d.from("messages").select("id").eq("booking_id", b.id).eq("type", "admin_alert").ilike("body", `%${key}%`).limit(1);
         if (ex?.length) continue;
         await queue(d, {
           type: "admin_alert", booking_id: b.id, lead_id: b.lead_id, to_email: ADMIN_EMAIL,
           subject: `Day-before check pending: ${lead?.company ?? b.email}`,
-          body: `${lead?.full_name ?? b.email} from ${lead?.company ?? "—"} hasn't confirmed attendance. The time will be released ${lease.attendance_release_hours} hours before the start if they don't confirm.\n\n${key}`,
+           body: `${lead?.full_name ?? b.email} from ${lead?.company ?? "—"} hasn't confirmed attendance for the consultation on ${when(b.start_utc, lease.team_timezone)}. The booking remains confirmed; please follow up.\n\n${key}`,
         }, b.is_demo);
         c.flagged++;
       }
@@ -254,7 +242,7 @@ export async function runAutomations(origin: string) {
     const out = await deliverDue(d);
     c.sent = out.sent; c.sendFailed = out.failed;
   } finally {
-    const summary = `Sent ${c.sent} emails (${c.sendFailed} failed), Expired ${c.expired}, deleted ${c.deleted}, completed ${c.completed}, flagged ${c.flagged}, released ${c.released}, calendar yes ${c.rsvpConfirmed}, calendar no ${c.rsvpDeclined}, nudges ${c.nudges}, demo reminders ${c.demoReminders}, cold ${c.cold}, reminders dropped ${c.cancelledReminders}, calendar retries ${c.calendarRetried} (${c.calendarFixed} fixed)`;
+     const summary = `Sent ${c.sent} emails (${c.sendFailed} failed), Expired ${c.expired}, deleted ${c.deleted}, completed ${c.completed}, flagged ${c.flagged}, calendar yes ${c.rsvpConfirmed}, calendar no ${c.rsvpDeclined}, nudges ${c.nudges}, demo reminders ${c.demoReminders}, cold ${c.cold}, reminders dropped ${c.cancelledReminders}, calendar retries ${c.calendarRetried} (${c.calendarFixed} fixed)`;
     await d.from("settings").update({ automation_lock_until: null, automation_last_run_at: new Date().toISOString(), automation_last_summary: summary }).eq("id", 1);
   }
   return { skipped: false as const, counts: c };

@@ -13,6 +13,11 @@ export const Route = createFileRoute("/admin/login")({
   head: () => ({
     meta: [
       { title: "Admin sign in — Advancing Data Solutions" },
+      { name: "description", content: "Sign in to manage consultation bookings for Advancing Data Solutions." },
+      { property: "og:title", content: "Admin sign in — Advancing Data Solutions" },
+      { property: "og:description", content: "Sign in to manage consultation bookings for Advancing Data Solutions." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),

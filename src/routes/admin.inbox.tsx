@@ -17,6 +17,10 @@ export const Route = createFileRoute("/admin/inbox")({
     meta: [
       { title: "Inbox — Admin — Advancing Data Solutions" },
       { name: "description", content: "Turn pasted inquiries into leads with a reply draft." },
+      { property: "og:title", content: "Inbox — Admin — Advancing Data Solutions" },
+      { property: "og:description", content: "Turn pasted inquiries into leads with a reply draft." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),

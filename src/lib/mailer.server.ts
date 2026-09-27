@@ -20,6 +20,11 @@ const TEMPLATE: Record<MsgType, string> = {
 export async function deliverMessage(d: DB, id: string, _demoMode?: boolean): Promise<"sent" | "failed" | "retry" | "skipped"> {
   const { data: m } = await d.from("messages").select("*").eq("id", id).eq("status", "scheduled").maybeSingle();
   if (!m || Date.parse(m.scheduled_utc) > Date.now()) return "skipped";
+  // Legacy queued release notices must never be delivered after auto-release was removed.
+  if (m.type === "release_notice") {
+    await d.from("messages").update({ status: "cancelled" }).eq("id", m.id).eq("status", "scheduled");
+    return "skipped";
+  }
   if (m.is_demo) {
     await d.from("messages").update({ status: "sent", sent_at: new Date().toISOString(), error: null }).eq("id", m.id).eq("status", "scheduled");
     return "sent";

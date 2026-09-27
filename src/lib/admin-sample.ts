@@ -96,7 +96,7 @@ export const SAMPLE_BOOKINGS: AdminBooking[] = [
     area: "Data", platform: "Microsoft Fabric", need: "Data platform or lakehouse", timeline: "3–6 months", budget: "$5k–20k",
     notes: "Evaluating Fabric for plant sensor data and Power BI reporting.",
     duration: 60, start: "2026-09-23T16:00:00Z", createdAt: "2026-09-19T17:05:00Z",
-    verified: true, ndaSigned: false, attendance: false, status: "released", isNew: false,
+     verified: true, ndaSigned: false, attendance: false, status: "no_show", isNew: false,
   },
   {
     id: "b8", code: "ADS-5JXA", name: "Aisha Rahman", email: "aisha@doharealty.qa",

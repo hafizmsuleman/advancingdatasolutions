@@ -249,7 +249,7 @@ export const verifyCode = createServerFn({ method: "POST" })
       const link = await meetingLink(db, b.id);
       const origin = SITE_URL;
       const short = Date.parse(b.start_utc) - Date.parse(b.created_at) < 26 * 3600_000;
-      const attend = short ? `\n\nPlease confirm you can attend. If we don't hear from you 6 hours before the start, we'll release the time:\n${origin}/attend/${b.manage_token}` : "";
+       const attend = short ? `\n\nPlease confirm you can attend:\n${origin}/attend/${b.manage_token}` : "";
       const cal = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("Free consultation with Advancing Data Solutions")}&dates=${gcal(Date.parse(b.start_utc))}/${gcal(Date.parse(b.end_utc))}&details=${encodeURIComponent(`Meeting link: ${link}\nManage your booking: ${origin}/booked/${b.manage_token}`)}&location=${encodeURIComponent(link)}`;
       const { data: st } = await db.from("settings").select("team_timezone").eq("id", 1).single();
       const fmt = (tz: string) => emailWhen(b.start_utc, tz);
@@ -296,7 +296,7 @@ export const rescheduleBooking = createServerFn({ method: "POST" })
     const { data: full } = await db.from("bookings").select("manage_token, leads(full_name), ndas(id)").eq("id", b.id).single();
     const signed = Array.isArray(full?.ndas) ? full.ndas.length > 0 : !!full?.ndas;
     const short = start - Date.now() < 26 * 3600_000;
-    const attend = short ? `\n\nPlease confirm you can attend. If we don't hear from you 6 hours before the start, we'll release the time:\n${origin}/attend/${data.token}` : "";
+     const attend = short ? `\n\nPlease confirm you can attend:\n${origin}/attend/${data.token}` : "";
     await cancelPendingReminders(db, b.id);
     await queueMessage(db, {
       type: "reschedule_notice", to: b.email, bookingId: b.id, leadId: b.lead_id,
