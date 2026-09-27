@@ -3,7 +3,9 @@ import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { runAutomationsNow } from "@/lib/automations.functions";
-import { resetDemoData } from "@/lib/demo-reset.functions";
+import { resetDemoData, generateDemoData } from "@/lib/demo-reset.functions";
+import { TimeZoneSelect } from "@/components/time-zone-select";
+import { setAdminTimeZone } from "@/lib/admin-sample";
 import { useInvalidateAdmin } from "@/lib/admin-data";
 import { BUDGET_LABEL, BUDGET_TO_DB } from "@/lib/enums";
 import { toast } from "sonner";
@@ -59,6 +61,8 @@ function SettingsPage() {
   const invalidate = useInvalidateAdmin();
   const runFn = useServerFn(runAutomationsNow);
   const resetFn = useServerFn(resetDemoData);
+  const genFn = useServerFn(generateDemoData);
+  const [generating, setGenerating] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [running, setRunning] = useState(false);
   const [lastRun, setLastRun] = useState<{ at: string; summary: string } | null>(null);
@@ -92,13 +96,14 @@ function SettingsPage() {
   async function saveAll() {
     const { error } = await supabase.from("settings").update({
       buffer_min: n.buffer, daily_cap: n.cap, min_notice_hours: n.notice, attendance_flag_hours: n.flag,
-      attendance_release_hours: n.release, budget_threshold: BUDGET_TO_DB[threshold]!, fallback_meeting_link: link.trim() || null,
+      attendance_release_hours: n.release, team_timezone: availabilityTz, budget_threshold: BUDGET_TO_DB[threshold]!, fallback_meeting_link: link.trim() || null,
     }).eq("id", 1);
     if (error) { toast.error("Couldn't save settings"); return; }
     await supabase.from("availability_windows").delete().in("weekday", [...WD]);
     const rows = days.map((x, i) => ({ weekday: WD[i]!, start_time: x.from, end_time: x.to, active: x.on })).filter((x) => x.active);
     const { error: e2 } = await supabase.from("availability_windows").insert(rows);
     if (e2) { toast.error("Couldn't save availability. Check the times (use 24:00 for midnight)."); return; }
+    setAdminTimeZone(availabilityTz);
     toast.success("Settings saved");
     invalidate();
   }
@@ -135,8 +140,20 @@ function SettingsPage() {
     if (h > 0) await runNow();
     else invalidate();
   }
+  async function generateDemo() {
+    if (!demo) return;
+    setGenerating(true);
+    try {
+      await genFn();
+      invalidate();
+      toast.success("10 sample bookings and 3 sample leads added");
+    } catch (e) {
+      toast.error(String(e).includes("already_generated") ? "Sample data is already added. Use Reset demo data first." : "Couldn't add sample data. No real data was changed.");
+    }
+    setGenerating(false);
+  }
   async function restoreDemo() {
-    if (!demo || !window.confirm("Restore the original sample bookings, leads and emails? Real data will stay as it is.")) return;
+    if (!demo || !window.confirm("Delete all demo data and restore the original sample bookings, leads and emails? Real data will stay as it is.")) return;
     setResetting(true);
     try {
       await resetFn();
@@ -154,9 +171,8 @@ function SettingsPage() {
       <Section title="Availability" desc="Availability hours are in your time zone. Slots start every 30 minutes.">
         <div className="mb-3">
           <label htmlFor="availability-time-zone" className="block text-xs text-muted-foreground">Your time zone</label>
-          <select id="availability-time-zone" className={field + " mt-1"} value={availabilityTz} disabled>
-            <option value={availabilityTz}>{availabilityTz === "Asia/Karachi" ? "Islamabad" : new Intl.DateTimeFormat("en-US", { timeZone: availabilityTz, timeZoneName: "long" }).formatToParts(new Date()).find((part) => part.type === "timeZoneName")?.value ?? "Your time zone"}</option>
-          </select>
+          <div className="mt-1 max-w-sm"><TimeZoneSelect id="availability-time-zone" value={availabilityTz} onChange={setAvailabilityTz} className="h-9 min-h-9 rounded-lg" /></div>
+          <p className="mt-1 text-xs text-muted-foreground">Admin times follow this zone. Clients never see it. Click Save changes to apply.</p>
         </div>
         <div className="divide-y divide-border">
           {days.map((row, i) => (
@@ -236,6 +252,7 @@ function SettingsPage() {
             ))}
             <button className={btn + " h-9"} disabled={!demo || offset === 0} onClick={() => setClock(0)}>Reset</button>
             {demo && <button className={btn + " h-9"} disabled={resetting} onClick={restoreDemo}>{resetting ? "Restoring…" : "Reset demo data"}</button>}
+            {demo && <button className={btn + " h-9"} disabled={generating} onClick={generateDemo}>{generating ? "Adding…" : "Generate sample data"}</button>}
           </div>
           {demo && (
             <div className="mt-3 rounded-[10px] border border-border bg-muted px-3 py-2 text-sm" role="status">

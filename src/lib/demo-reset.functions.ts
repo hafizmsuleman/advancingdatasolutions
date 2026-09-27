@@ -10,3 +10,14 @@ export const resetDemoData = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+export const generateDemoData = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: allowed } = await context.supabase.rpc("is_admin");
+    if (!allowed) throw new Error("Forbidden");
+    // Admin- and demo-mode-checked in the database; inserts is_demo rows only.
+    const { error } = await context.supabase.rpc("generate_demo_data");
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

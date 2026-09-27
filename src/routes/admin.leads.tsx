@@ -61,6 +61,7 @@ function Leads() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
+            {rows.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-sm text-muted-foreground">No leads to show.</td></tr>}
             {rows.map((l) => (
               <tr key={l.id} className="hover:bg-muted/30">
                 <td className={td}>
