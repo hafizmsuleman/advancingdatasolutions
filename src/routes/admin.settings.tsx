@@ -50,7 +50,7 @@ function Num({ id, label, value, onChange, suffix }: { id: string; label: string
 
 function SettingsPage() {
   const [days, setDays] = useState(DAYS.map((d, i) => ({ d, on: i < 5, from: "15:00", to: "24:00" })));
-  const [n, setN] = useState({ buffer: 15, cap: 3, notice: 24, flag: 12, release: 6 });
+   const [n, setN] = useState({ buffer: 15, cap: 3, notice: 24, flag: 12 });
   const [threshold, setThreshold] = useState("$5k–20k");
   const [link, setLink] = useState("");
   const [blocked, setBlocked] = useState(["mailinator.com", "quickmail-temp.io", "spam@example.com"]);
@@ -79,7 +79,7 @@ function SettingsPage() {
       ]);
       if (st) {
         if (st.automation_last_run_at) setLastRun({ at: st.automation_last_run_at, summary: st.automation_last_summary ?? "" });
-        setN({ buffer: st.buffer_min, cap: st.daily_cap, notice: st.min_notice_hours, flag: st.attendance_flag_hours, release: st.attendance_release_hours });
+         setN({ buffer: st.buffer_min, cap: st.daily_cap, notice: st.min_notice_hours, flag: st.attendance_flag_hours });
         setThreshold(BUDGET_LABEL[st.budget_threshold]);
         setLink(st.fallback_meeting_link ?? "");
         if (st.demo_mode !== (view !== "real")) await supabase.from("settings").update({ demo_mode: view !== "real" }).eq("id", 1);
@@ -97,7 +97,7 @@ function SettingsPage() {
   async function saveAll() {
     const { error } = await supabase.from("settings").update({
       buffer_min: n.buffer, daily_cap: n.cap, min_notice_hours: n.notice, attendance_flag_hours: n.flag,
-      attendance_release_hours: n.release, team_timezone: availabilityTz, budget_threshold: BUDGET_TO_DB[threshold]!, fallback_meeting_link: link.trim() || null,
+       team_timezone: availabilityTz, budget_threshold: BUDGET_TO_DB[threshold]!, fallback_meeting_link: link.trim() || null,
     }).eq("id", 1);
     if (error) { toast.error("Couldn't save settings"); return; }
     await supabase.from("availability_windows").delete().in("weekday", [...WD]);
@@ -200,7 +200,6 @@ function SettingsPage() {
           <Num id="cap" label="Daily cap" value={n.cap} onChange={(v) => setN({ ...n, cap: v })} suffix="sessions" />
           <Num id="notice" label="Minimum notice" value={n.notice} onChange={(v) => setN({ ...n, notice: v })} suffix="hours" />
           <Num id="flag" label="Amber attendance flag" value={n.flag} onChange={(v) => setN({ ...n, flag: v })} suffix="h before" />
-          <Num id="release" label="Release if unconfirmed" value={n.release} onChange={(v) => setN({ ...n, release: v })} suffix="h before" />
           <div>
             <label htmlFor="thr" className="block text-xs text-muted-foreground">60-minute budget threshold</label>
             <select id="thr" className={field + " mt-1"} value={threshold} onChange={(e) => setThreshold(e.target.value)}>
@@ -231,7 +230,7 @@ function SettingsPage() {
         </form>
       </Section>
 
-      <Section title="Automations" desc="Reminders, attendance release, nudges and clean-up run every 5 minutes.">
+       <Section title="Automations" desc="Reminders, attendance checks, nudges and clean-up run every 5 minutes.">
         <div className="flex flex-wrap items-center gap-3">
           <button className={btn + " h-9"} disabled={running} onClick={runNow}>{running ? "Running…" : "Run now"}</button>
           <span className="text-sm text-muted-foreground">

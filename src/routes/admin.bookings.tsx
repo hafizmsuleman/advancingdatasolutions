@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Panel, Pill, PageIntro, DemoTag, btn, field, th, td } from "@/components/admin-ui";
-import { blockSender, useAdminBookings, useDataView, useInvalidateAdmin } from "@/lib/admin-data";
+import { Panel, Pill, PageIntro, btn, field, th, td } from "@/components/admin-ui";
+import { blockSender, useAdminBookings, useInvalidateAdmin } from "@/lib/admin-data";
 import { supabase } from "@/integrations/supabase/client";
 import { browserTimeZone, fmtIn, dayKeyIn, tzLabel, type AdminBooking, type BookingStatus } from "@/lib/admin-sample";
 import { BookingDrawer } from "@/components/booking-drawer";
@@ -31,7 +31,6 @@ const STATUS: Record<BookingStatus, { label: string; tone: "success" | "info" | 
 
 function Bookings() {
   const { data: rows = [] } = useAdminBookings();
-  const view = useDataView();
   const invalidate = useInvalidateAdmin();
   const cancelFn = useServerFn(cancelAdminBooking);
   const [status, setStatus] = useState("all");
@@ -104,7 +103,7 @@ function Bookings() {
               <tr key={b.id} className="hover:bg-muted/30">
                 <td className={td + " !whitespace-normal"}>
                   <button onClick={() => setOpen(b)} className="block w-full min-w-0 text-left">
-                    <span className="block break-words font-medium leading-snug text-primary hover:underline">{b.company}<DemoTag show={view === "all" && b.isDemo} /></span>
+                     <span className="block break-words font-medium leading-snug text-primary hover:underline">{b.company}</span>
                     <span className="block break-words text-xs leading-snug text-muted-foreground">{b.name}</span>
                   </button>
                 </td>
