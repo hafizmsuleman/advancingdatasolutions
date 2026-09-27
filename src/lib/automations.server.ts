@@ -3,7 +3,7 @@ import { emailWhen } from "@/lib/time-zone-label";
 // `messages`; real sending picks up rows whose scheduled_utc has passed.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { syncBookingCalendar } from "./calendar.server";
+import { eventRsvp, syncBookingCalendar } from "./calendar.server";
 import { deliverDue, deliverMessage } from "./mailer.server";
 
 type DB = SupabaseClient<Database>;
@@ -13,6 +13,7 @@ const ADMIN_EMAIL = "contact@advancingdatasolutions.com";
 const H = 3600_000;
 const BATCH = 200;
 const REMINDER_TYPES: MsgType[] = ["nda_reminder", "reminder_24h", "reminder_1h"];
+const DECLINED = "Client declined in calendar";
 const SIGN = "\n\nThe Advancing Data Solutions team";
 
 async function db(): Promise<DB> {
@@ -118,6 +119,7 @@ export async function runAutomations(origin: string) {
       const b = m.bookings as { status: string; ndas: { id: string }[] | { id: string } | null } | null;
       if (!b || !["confirmed", "attendance_confirmed"].includes(b.status)) return true;
       const signed = Array.isArray(b.ndas) ? b.ndas.length > 0 : !!b.ndas;
+      if (m.type === "reminder_24h" && b.status === "attendance_confirmed") return true;
       return m.type === "nda_reminder" && signed;
     }).map((m) => m.id);
     if (drop.length) {
@@ -126,7 +128,7 @@ export async function runAutomations(origin: string) {
     }
 
     // 4. Active bookings: complete, release at 6h, flag at 12h.
-    let bq = d.from("bookings").select("id,code,email,start_utc,end_utc,length_min,client_tz,status,manage_token,lead_id,is_demo,attendance_confirmed_at,created_at, leads(full_name,company), ndas(id)")
+    let bq = d.from("bookings").select("id,code,email,start_utc,end_utc,length_min,client_tz,status,manage_token,lead_id,is_demo,attendance_confirmed_at,created_at,google_event_id, leads(full_name,company), ndas(id)")
       .in("status", ["confirmed", "attendance_confirmed"]).order("start_utc").limit(BATCH);
     if (!lease.demo_mode) bq = bq.eq("is_demo", false);
     const { data: active } = await bq;
@@ -155,6 +157,29 @@ export async function runAutomations(origin: string) {
           }
         }
       }
+      // Google Calendar RSVP: "Yes" confirms attendance; "No" flags the booking for the admin once.
+      if (!b.is_demo && b.google_event_id && start > t) {
+        const rsvp = await eventRsvp(b.google_event_id, b.email);
+        if (rsvp === "accepted" && b.status === "confirmed" && !b.attendance_confirmed_at) {
+          const { data: ok } = await d.from("bookings").update({ status: "attendance_confirmed", attendance_confirmed_at: nowIso })
+            .eq("id", b.id).eq("status", "confirmed").select("id");
+          if (ok?.length) {
+            await d.from("messages").update({ status: "cancelled" }).eq("booking_id", b.id).eq("status", "scheduled").eq("type", "reminder_24h");
+            c.rsvpConfirmed++;
+            continue;
+          }
+        } else if (rsvp === "declined") {
+          const { data: ex } = await d.from("messages").select("id").eq("booking_id", b.id).eq("type", "admin_alert").ilike("subject", `${DECLINED}%`).limit(1);
+          if (!ex?.length) {
+            await queue(d, {
+              type: "admin_alert", booking_id: b.id, lead_id: b.lead_id, to_email: ADMIN_EMAIL,
+              subject: `${DECLINED}: ${lead?.company ?? b.email}`,
+              body: `${lead?.full_name ?? b.email} from ${lead?.company ?? "—"} answered "No" to the calendar invite for the consultation on ${when(b.start_utc, "${TEAM}")}. The booking has not been cancelled — please follow up.`,
+            }, false);
+            c.rsvpDeclined++;
+          }
+        }
+      }
       if (b.status !== "confirmed" || b.attendance_confirmed_at || start <= t) continue;
       const left = start - t;
       if (left <= lease.attendance_release_hours * H) {
@@ -175,7 +200,7 @@ export async function runAutomations(origin: string) {
         if (ex?.length) continue;
         await queue(d, {
           type: "admin_alert", booking_id: b.id, lead_id: b.lead_id, to_email: ADMIN_EMAIL,
-          subject: `Attendance unconfirmed: ${lead?.company ?? b.email}`,
+          subject: `Day-before check pending: ${lead?.company ?? b.email}`,
           body: `${lead?.full_name ?? b.email} from ${lead?.company ?? "—"} hasn't confirmed attendance. The time will be released ${lease.attendance_release_hours} hours before the start if they don't confirm.\n\n${key}`,
         }, b.is_demo);
         c.flagged++;
