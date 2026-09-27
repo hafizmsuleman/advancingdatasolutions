@@ -18,6 +18,10 @@ export const Route = createFileRoute("/admin/settings")({
     meta: [
       { title: "Settings — Admin — Advancing Data Solutions" },
       { name: "description", content: "Availability, limits, meeting link and demo mode." },
+      { property: "og:title", content: "Settings — Admin — Advancing Data Solutions" },
+      { property: "og:description", content: "Availability, limits, meeting link and demo mode." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),

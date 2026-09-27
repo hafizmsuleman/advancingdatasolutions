@@ -13,6 +13,10 @@ export const Route = createFileRoute("/admin/leads")({
     meta: [
       { title: "Leads — Admin — Advancing Data Solutions" },
       { name: "description", content: "Leads and follow-up nudges." },
+      { property: "og:title", content: "Leads — Admin — Advancing Data Solutions" },
+      { property: "og:description", content: "Leads and follow-up nudges." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),

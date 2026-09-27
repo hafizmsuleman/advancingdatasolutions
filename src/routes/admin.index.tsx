@@ -11,6 +11,10 @@ export const Route = createFileRoute("/admin/")({
     meta: [
       { title: "Dashboard — Admin — Advancing Data Solutions" },
       { name: "description", content: "New bookings and automation stats." },
+      { property: "og:title", content: "Dashboard — Admin — Advancing Data Solutions" },
+      { property: "og:description", content: "New bookings and automation stats." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),

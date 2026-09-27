@@ -13,6 +13,10 @@ export const Route = createFileRoute("/admin/outbox")({
     meta: [
       { title: "Outbox — Admin — Advancing Data Solutions" },
       { name: "description", content: "Automated emails: scheduled, sent and failed." },
+      { property: "og:title", content: "Outbox — Admin — Advancing Data Solutions" },
+      { property: "og:description", content: "Automated emails: scheduled, sent and failed." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
