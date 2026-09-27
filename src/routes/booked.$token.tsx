@@ -4,6 +4,7 @@ import { CalendarPlus, CheckCircle2, Clock, FileSignature, Video } from "lucide-
 
 import { StatusBadge } from "@/components/status-badge";
 import { buildIcs, fetchBooking, type SampleBooking } from "@/lib/sample-bookings";
+import { friendlyTimeZone } from "@/lib/time-zone-label";
 
 const TITLE = "You're booked — Advancing Data Solutions";
 const DESC = "Your free consultation with our engineers is confirmed.";
@@ -46,7 +47,7 @@ function BookedPage() {
       <main className="flex flex-1 items-center justify-center px-4 py-16">
         <div className="max-w-md rounded-xl border border-border bg-card p-8 text-center shadow-sm">
           <h1 className="text-xl font-semibold tracking-tight">This consultation was cancelled</h1>
-          <p className="mt-2 text-muted-foreground">Booking {b.code} is no longer active. You're welcome to book a new time.</p>
+          <p className="mt-2 text-muted-foreground">This booking is no longer active. You're welcome to book a new time.</p>
           <Link to="/book" className="mt-6 inline-flex min-h-11 items-center rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary-hover">Book a new time</Link>
         </div>
       </main>
@@ -64,7 +65,7 @@ function BookedPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `consultation-${b!.code}.ics`;
+    a.download = "consultation.ics";
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -90,7 +91,7 @@ function BookedPage() {
               <Clock className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
               <div>
                 <dt className="text-sm text-muted-foreground">Free consultation · <span className="tnums">{b.duration} minutes</span></dt>
-                <dd className="mt-1 font-medium tnums">{dateStr}<br />{t(s)} – {t(e)} <span className="text-sm font-normal text-muted-foreground">({tz.replace(/_/g, " ")})</span></dd>
+                <dd className="mt-1 font-medium tnums">{dateStr}<br />{t(s)} – {t(e)} <span className="text-sm font-normal text-muted-foreground">({friendlyTimeZone(tz)})</span></dd>
               </div>
             </div>
             <div className="flex items-start gap-3 p-4">
@@ -99,10 +100,6 @@ function BookedPage() {
                 <dt className="text-sm text-muted-foreground">Meeting link</dt>
                 <dd className="mt-1 break-all"><a href={b.meetingLink} target="_blank" rel="noopener noreferrer" className="font-medium text-primary underline-offset-4 hover:underline">{b.meetingLink}</a></dd>
               </div>
-            </div>
-            <div className="flex items-center justify-between gap-3 p-4">
-              <dt className="text-sm text-muted-foreground">Booking reference</dt>
-              <dd className="font-semibold tracking-wide tnums">{b.code}</dd>
             </div>
           </dl>
 
@@ -121,7 +118,7 @@ function BookedPage() {
             )}
           </div>
           {b.nda ? (
-            <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground"><StatusBadge kind="nda-signed" /> Signed by {b.nda.name}</p>
+            <p className="mt-3 text-sm text-muted-foreground">Signed by {b.nda.name}</p>
           ) : (
             <p className="mt-3 text-sm text-muted-foreground">Signing our mutual NDA before the call lets you share details freely. It takes a minute.</p>
           )}

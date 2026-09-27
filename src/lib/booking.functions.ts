@@ -232,13 +232,13 @@ export const verifyCode = createServerFn({ method: "POST" })
       await queueMessage(db, {
         type: "confirmation", to: b.email, bookingId: b.id, leadId: b.lead_id, minutes: 10,
         subject: `You're booked: Free Consultation (${b.length_min} min)`,
-        body: `Hi ${(lead?.full_name ?? "").split(" ")[0] || "there"},\n\nThanks for booking a free ${b.length_min}-minute consultation with our engineers. Your call is on ${when} (your time).\n\nMeeting link: ${link}\nReference: ${b.code}${attend}\n\nSpeak soon,\nAdvancing Data Solutions`,
+        body: `Hi ${(lead?.full_name ?? "").split(" ")[0] || "there"},\n\nThanks for booking a free ${b.length_min}-minute consultation with our engineers. Your call is on ${when} (your time).\n\nMeeting link: ${link}${attend}\n\nSpeak soon,\nAdvancing Data Solutions`,
       });
       await scheduleReminders(db, { ...b, full_name: lead?.full_name ?? null }, origin, { nda: true });
       await queueMessage(db, {
         type: "admin_new_booking", to: "contact@advancingdatasolutions.com", bookingId: b.id, leadId: b.lead_id,
         subject: `New booking: ${lead?.company ?? b.email} (${b.length_min} min)`,
-        body: `${lead?.full_name ?? ""} from ${lead?.company ?? ""} booked ${b.code} for ${new Date(b.start_utc).toISOString()}.`,
+        body: `${lead?.full_name ?? ""} from ${lead?.company ?? ""} booked for ${new Date(b.start_utc).toISOString()}.`,
       });
       return { result: r, token: b.manage_token };
     }
@@ -277,7 +277,7 @@ export const rescheduleBooking = createServerFn({ method: "POST" })
     await queueMessage(db, {
       type: "reschedule_notice", to: b.email, bookingId: b.id, leadId: b.lead_id,
       subject: "Your consultation has moved",
-      body: `Your consultation ${b.code} is now on ${new Intl.DateTimeFormat("en-GB", { timeZone: data.timeZone, dateStyle: "full", timeStyle: "short" }).format(start)} (your time). The meeting link stays the same.${attend}\n\nAdvancing Data Solutions`,
+      body: `Your consultation is now on ${new Intl.DateTimeFormat("en-GB", { timeZone: data.timeZone, dateStyle: "full", timeStyle: "short" }).format(start)} (your time). The meeting link stays the same.${attend}\n\nAdvancing Data Solutions`,
     });
     await scheduleReminders(db, {
       id: b.id, email: b.email, code: b.code, start_utc: new Date(start).toISOString(), length_min: b.length_min,
@@ -293,13 +293,27 @@ export const cancelBooking = createServerFn({ method: "POST" })
     const db = await admin();
     const { data: r } = await db.rpc("cancel_booking_by_token", { p_token: data.token, p_reason: stripLinks(data.reason).slice(0, 300) });
     if (r !== "cancelled") return { error: "not_found" as const };
-    const { data: b } = await db.from("bookings").select("id,email,code,lead_id").eq("manage_token", data.token).single();
+    const { data: b } = await db.from("bookings").select("id,email,lead_id,is_demo").eq("manage_token", data.token).single();
     if (b) await cancelPendingReminders(db, b.id);
     if (b) await syncBookingCalendar(db, b.id);
-    if (b) await queueMessage(db, {
-      type: "cancel_notice", to: b.email, bookingId: b.id, leadId: b.lead_id,
-      subject: "Your consultation has been cancelled",
-      body: `Your consultation ${b.code} has been cancelled and the time released. You're welcome to book a new time whenever suits you.\n\nAdvancing Data Solutions`,
-    });
+    if (b) {
+      const { error } = await db.from("messages").insert({
+        type: "cancel_notice", to_email: b.email, booking_id: b.id, lead_id: b.lead_id, is_demo: b.is_demo,
+        subject: "Your consultation has been cancelled",
+        body: `Your consultation has been cancelled and the time released. You're welcome to book a new time whenever suits you:\n${new URL(getRequest().url).origin}/book\n\nAdvancing Data Solutions`,
+      });
+      if (error) throw new Error("Booking cancelled, but the notice couldn't be queued");
+    }
+    return { ok: true as const };
+  });
+
+/** Public token was validated by sign_nda; refresh only that booking's calendar event. */
+export const refreshSignedNdaCalendar = createServerFn({ method: "POST" })
+  .inputValidator((d: { token: string }) => z.object({ token: z.string().min(16).max(64) }).parse(d))
+  .handler(async ({ data }) => {
+    const db = await admin();
+    const { data: b } = await db.from("bookings").select("id,ndas(id)").eq("manage_token", data.token).maybeSingle();
+    if (!b || !b.ndas || (Array.isArray(b.ndas) && !b.ndas.length)) return { ok: false as const };
+    await syncBookingCalendar(db, b.id);
     return { ok: true as const };
   });

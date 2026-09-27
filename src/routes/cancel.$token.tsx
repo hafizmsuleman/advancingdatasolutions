@@ -42,7 +42,7 @@ function Cancel({ b, setB, token }: { b: SampleBooking; setB: (b: SampleBooking)
         <div className="text-center">
           <CheckCircle2 className="mx-auto h-12 w-12 text-success" aria-hidden />
           <h1 className="mt-4 text-2xl font-semibold tracking-tight">Cancelled</h1>
-          <p className="mt-2 text-muted-foreground">Your consultation ({b.code}) has been cancelled and the time has been released. We hope to talk another time.</p>
+          <p className="mt-2 text-muted-foreground">Your consultation has been cancelled and the time has been released. We hope to talk another time.</p>
           <Link to="/book" className="mt-6 inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-6 text-sm font-semibold text-primary-foreground hover:bg-primary-hover">
             Book a new time
           </Link>

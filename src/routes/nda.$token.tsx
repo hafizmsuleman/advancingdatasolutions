@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { cn } from "@/lib/utils";
 import { fetchBooking, type SampleBooking } from "@/lib/sample-bookings";
 import { supabase } from "@/integrations/supabase/client";
+import { refreshSignedNdaCalendar } from "@/lib/booking.functions";
 
 const TITLE = "Mutual NDA — Advancing Data Solutions";
 const DESC = "Review and sign our mutual non-disclosure agreement before your consultation.";
@@ -71,7 +72,9 @@ function NdaPage() {
       return;
     }
     setErrors({});
-    await supabase.rpc("sign_nda", { p_token: token, p_name: r.data.name, p_title: r.data.title });
+    const { error } = await supabase.rpc("sign_nda", { p_token: token, p_name: r.data.name, p_title: r.data.title });
+    if (error) { setErrors({ agree: "We couldn't save your signature. Please try again." }); return; }
+    await refreshSignedNdaCalendar({ data: { token } }).catch(() => null);
     const nb = await fetchBooking(token);
     if (nb) setB(nb);
     window.scrollTo({ top: 0, behavior: "smooth" });

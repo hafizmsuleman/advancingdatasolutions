@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Globe } from "lucide-react";
+import { Globe, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { dateKey, generateSlots, partsIn, visitorDays, type Slot } from "@/lib/slots";
 import { useBusy } from "@/lib/use-busy";
+import { useRef } from "react";
+import { friendlyTimeZone } from "@/lib/time-zone-label";
 
 function allZones(current: string): string[] {
   const fn = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf;
@@ -26,6 +28,7 @@ export function SlotPicker(props: {
   const [now] = useState(() => Date.now());
   const [editingTz, setEditingTz] = useState(false);
   const [day, setDay] = useState("");
+  const tabsRef = useRef<HTMLDivElement>(null);
 
   const slots = useMemo(
     () => generateSlots({ now, duration, visitorTz: tz, busy }).filter((s) => s.start !== excludeStart),
@@ -59,7 +62,7 @@ export function SlotPicker(props: {
     <div>
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <Globe className="h-4 w-4 text-primary" aria-hidden />
-        <span>Times shown in <strong className="font-medium">{tz.replace(/_/g, " ")}</strong></span>
+        <span>Times shown in <strong className="font-medium">{friendlyTimeZone(tz)}</strong></span>
         <button type="button" onClick={() => setEditingTz((v) => !v)} className="font-medium text-primary underline-offset-4 hover:underline">
           {editingTz ? "Cancel" : "Change"}
         </button>
@@ -69,12 +72,14 @@ export function SlotPicker(props: {
           <label htmlFor="tz" className="mb-1 block text-sm font-medium">Your time zone</label>
           <select id="tz" value={tz} onChange={(e) => { onTzChange(e.target.value); onSelect(null); setEditingTz(false); }}
             className="min-h-11 w-full rounded-md border border-input bg-card px-3 text-sm">
-            {allZones(tz).map((z) => <option key={z} value={z}>{z.replace(/_/g, " ")}</option>)}
+            {allZones(tz).map((z) => <option key={z} value={z}>{friendlyTimeZone(z)}</option>)}
           </select>
         </div>
       )}
 
-      <div role="tablist" aria-label="Dates" className="-mx-1 mt-6 flex gap-2 overflow-x-auto px-1 pb-2">
+      <div className="mt-6 flex items-center gap-1">
+      <button type="button" aria-label="Earlier dates" onClick={() => tabsRef.current?.scrollBy({ left: -220, behavior: "smooth" })} className="flex h-11 w-8 shrink-0 items-center justify-center text-primary"><ChevronLeft className="h-5 w-5" /></button>
+      <div ref={tabsRef} role="tablist" aria-label="Dates" className="date-tabs flex min-w-0 flex-1 gap-2 overflow-x-auto px-1 pb-2">
         {days.map((d) => {
           const on = d.key === day;
           return (
@@ -88,6 +93,8 @@ export function SlotPicker(props: {
             </button>
           );
         })}
+      </div>
+      <button type="button" aria-label="Later dates" onClick={() => tabsRef.current?.scrollBy({ left: 220, behavior: "smooth" })} className="flex h-11 w-8 shrink-0 items-center justify-center text-primary"><ChevronRight className="h-5 w-5" /></button>
       </div>
 
       <div role="tabpanel" className="min-h-[120px]">

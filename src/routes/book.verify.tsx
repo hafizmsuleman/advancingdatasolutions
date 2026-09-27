@@ -174,14 +174,17 @@ function VerifyPage() {
           </div>
 
           <label htmlFor="code" className="mt-6 block text-sm font-medium">Verification code</label>
-          <input
-            id="code" ref={inputRef} autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={6}
-            value={code} onChange={(e) => onChange(e.target.value)} disabled={busy || locked || expired}
-            aria-invalid={!!error} aria-describedby="code-status"
-            className={cn("mt-2 h-14 w-full rounded-md border bg-card px-4 text-center text-2xl font-semibold tracking-[0.5em] tnums",
-              error ? "border-destructive" : "border-input", "disabled:opacity-60")}
-            placeholder="••••••"
-          />
+          <div className="relative mt-2 flex max-w-sm gap-2" onClick={() => inputRef.current?.focus()}>
+            {Array.from({ length: 6 }, (_, i) => (
+              <span key={i} aria-hidden="true" className={cn("flex h-14 min-w-0 flex-1 items-center justify-center rounded-md border bg-card text-2xl font-semibold tnums", error ? "border-destructive" : "border-input", code.length === i && !busy && "ring-1 ring-ring")}>
+                {code[i] ?? ""}
+              </span>
+            ))}
+            <input id="code" ref={inputRef} autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={6}
+              value={code} onChange={(e) => onChange(e.target.value)} disabled={busy || locked || expired}
+              aria-invalid={!!error} aria-describedby="code-status"
+              className="absolute inset-0 h-full w-full cursor-text opacity-0" />
+          </div>
 
           <div id="code-status" aria-live="polite" className="mt-3 min-h-6 text-sm">
             {busy && <span className="text-muted-foreground">Checking…</span>}

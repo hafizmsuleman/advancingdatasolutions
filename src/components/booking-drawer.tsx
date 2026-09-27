@@ -1,7 +1,7 @@
 import { FileSignature, BadgeCheck, CalendarCheck, Clock, CalendarX } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Pill } from "@/components/admin-ui";
-import { browserTimeZone, fmtIn, tzLabel, type AdminBooking } from "@/lib/admin-sample";
+import { browserTimeZone, fmtIn, tzLabel, cancellationText, type AdminBooking } from "@/lib/admin-sample";
 
 export function Badges({ b }: { b: AdminBooking }) {
   return (
@@ -21,14 +21,13 @@ export function BookingDrawer({ b, onClose }: { b: AdminBooking | null; onClose:
         {b && (
           <>
             <SheetHeader>
-              <SheetTitle>{b.company}</SheetTitle>
-              <SheetDescription>{b.name} · {b.role}</SheetDescription>
+              <SheetTitle>{b.company} – {b.name}</SheetTitle>
+              <SheetDescription>{b.role}</SheetDescription>
             </SheetHeader>
             <div className="mt-4 space-y-4 px-4 pb-6 text-sm">
               <Badges b={b} />
               <dl className="grid grid-cols-[120px_1fr] gap-x-3 gap-y-2">
                 {[
-                  ["Reference", b.code],
                   ["Email", b.email],
                   ["Country", b.country],
                   ["Session", `Free Consultation · ${b.duration} min`],
@@ -47,6 +46,7 @@ export function BookingDrawer({ b, onClose }: { b: AdminBooking | null; onClose:
                   </div>
                 ))}
               </dl>
+              {b.status === "cancelled" && <p className="text-sm text-muted-foreground">{cancellationText(b)}</p>}
               <div>
                 <h3 className="mb-1 text-xs font-medium text-muted-foreground">Notes from the client</h3>
                 <p className="rounded-lg bg-muted p-3 leading-relaxed text-foreground">{b.notes}</p>

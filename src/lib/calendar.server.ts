@@ -93,7 +93,7 @@ export async function syncBookingCalendar(d: DB, bookingId: string): Promise<Syn
     const l = b.leads as { full_name: string | null; company: string | null; role: string | null; project_area: string | null; platform: string | null; need: string | null; budget_range: string | null; notes: string | null } | null;
     const nda = (Array.isArray(b.ndas) ? b.ndas[0] : b.ndas) as { signer_name: string; signed_at: string } | undefined;
     const description = [
-      `Free Consultation (${b.length_min} min) · Reference ${b.code}`,
+      `Free Consultation (${b.length_min} min)`,
       "",
       `Name: ${l?.full_name ?? "—"}`,
       `Role: ${l?.role ?? "—"}`,
@@ -105,7 +105,7 @@ export async function syncBookingCalendar(d: DB, bookingId: string): Promise<Syn
       `Budget: ${BUDGET_LABEL[l?.budget_range as keyof typeof BUDGET_LABEL] ?? "—"}`,
       `Notes: ${l?.notes || "—"}`,
       "",
-      `NDA: ${nda ? `signed by ${nda.signer_name} on ${new Date(nda.signed_at).toISOString().slice(0, 10)}` : "not signed yet"}`,
+      `NDA: ${nda ? "signed" : "not signed yet"}`,
     ].join("\n");
     const body = {
       summary: `Consultation: ${l?.company || b.email} (Advancing Data Solutions)`,

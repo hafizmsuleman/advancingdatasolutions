@@ -67,8 +67,8 @@ function SessionPage() {
         <div className="step-transition rounded-xl border border-border bg-card p-6 shadow-sm sm:p-8">
           <BookingProgress steps={STEPS} currentStep={2} />
           <div className="mt-8 rounded-lg border border-primary/30 bg-secondary/40 p-5">
-            <p className="text-sm font-medium text-primary">Suggested for you</p>
-            <p className="mt-1 text-2xl font-semibold tracking-tight tnums">{suggested}-minute consultation</p>
+            <p className="text-sm font-medium text-primary">Our suggestion: {suggested} minutes</p>
+            <p className="mt-1 text-2xl font-semibold tracking-tight tnums">{duration}-minute consultation{duration !== suggested ? " – your choice" : ""}</p>
             <p className="mt-2 text-muted-foreground">{reason}</p>
           </div>
 

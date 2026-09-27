@@ -32,6 +32,8 @@ export type AdminBooking = {
   attendance: boolean;
   status: BookingStatus;
   isNew: boolean;
+  cancelledAt?: string | null;
+  cancelReason?: string | null;
 };
 
 export const SAMPLE_BOOKINGS: AdminBooking[] = [
@@ -121,18 +123,18 @@ export const SAMPLE_LEADS: AdminLead[] = [
 
 export type EmailStatus = "scheduled" | "sent" | "failed" | "cancelled";
 export type OutboxEmail = {
-  id: string; to: string; type: string; subject: string; body: string; at: string; status: EmailStatus;
+  id: string; to: string; type: string; subject: string; body: string; at: string; status: EmailStatus; cancellationNote?: boolean;
 };
 
 export const SAMPLE_OUTBOX: OutboxEmail[] = [
   { id: "e1", to: "megan.holloway@northwindlogistics.com", type: "confirmation", subject: "You're booked: Free Consultation, Tue 29 Sep",
-    body: "Hi Megan,\n\nThanks for booking a free 60-minute consultation with our engineers. Your call is on Tuesday 29 September at 9:00 am (your time).\n\nMeeting link: https://meet.google.com/xyz\nReference: ADS-7K2Q\n\nTo help us prepare, you can sign our mutual NDA before the call. If you need to change the time, use the reschedule link in this email.\n\nSpeak soon,\nAdvancing Data Solutions",
+    body: "Hi Megan,\n\nThanks for booking a free 60-minute consultation with our engineers. Your call is on Tuesday 29 September at 9:00 am (your time).\n\nMeeting link: https://meet.google.com/xyz\n\nTo help us prepare, you can sign our mutual NDA before the call. If you need to change the time, use the reschedule link in this email.\n\nSpeak soon,\nAdvancing Data Solutions",
     at: "2026-09-26T19:43:00Z", status: "sent" },
   { id: "e2", to: "j.whitfield@harbourinsure.co.uk", type: "nda_reminder", subject: "One step before our call: sign the NDA",
     body: "Hi James,\n\nA quick reminder that you can sign our mutual NDA before Tuesday's consultation, so you can share details about your policy documents freely.\n\nIt takes about a minute.\n\nAdvancing Data Solutions",
     at: "2026-09-27T00:05:00Z", status: "scheduled" },
   { id: "e3", to: "omar.mansoori@gulfretailgroup.ae", type: "confirmation", subject: "You're booked: Free Consultation, Wed 30 Sep",
-    body: "Hi Omar,\n\nThanks for booking a free 60-minute consultation with our engineers. Your call is on Wednesday 30 September at 3:00 pm (your time).\n\nMeeting link: https://meet.google.com/xyz\nReference: ADS-8PWD\n\nAdvancing Data Solutions",
+    body: "Hi Omar,\n\nThanks for booking a free 60-minute consultation with our engineers. Your call is on Wednesday 30 September at 3:00 pm (your time).\n\nMeeting link: https://meet.google.com/xyz\n\nAdvancing Data Solutions",
     at: "2026-09-27T01:19:00Z", status: "sent" },
   { id: "e4", to: "tom.ashby@ledgerlinepay.co.uk", type: "nudge", subject: "Still keen to talk about your GenAI project?",
     body: "Hi Tom,\n\nYou started booking a consultation with us but didn't pick a time. Our engineers have slots this week, and you can pick up where you left off with one click.\n\nAdvancing Data Solutions",
@@ -148,7 +150,7 @@ export const SAMPLE_OUTBOX: OutboxEmail[] = [
     at: "2026-09-23T10:00:00Z", status: "sent" },
   { id: "e8", to: "aisha@doharealty.qa", type: "reminder_1h", subject: "Starting in 1 hour",
     body: "Hi Aisha,\n\nYour consultation starts in one hour.\n\nAdvancing Data Solutions",
-    at: "2026-10-05T09:00:00Z", status: "cancelled" },
+    at: "2026-10-05T09:00:00Z", status: "cancelled", cancellationNote: true },
 ];
 
 export const STATS = { bookingsThisWeek: 6, ndasSigned: 4, emailsAutomated: 37, hoursSaved: 3.4 };
@@ -168,6 +170,12 @@ export function dayKeyIn(iso: string, tz: string) {
 }
 
 export function tzLabel(tz: string) {
-  if (tz === TEAM_TZ) return "UTC+05:00";
+  if (tz === TEAM_TZ) return "Pakistan – Karachi";
   return (tz.split("/").pop() ?? tz).replace(/_/g, " ");
+}
+
+export function cancellationText(b: AdminBooking) {
+  if (b.status !== "cancelled") return "";
+  const by = b.cancelReason?.startsWith("Cancelled by our team") ? "admin" : "client";
+  return `Cancelled on ${b.cancelledAt ? fmtIn(b.cancelledAt, browserTimeZone()) : "unknown date"} by ${by}${b.cancelReason && !["Cancelled by our team", "slot_taken", "replaced"].includes(b.cancelReason) ? ` · ${b.cancelReason}` : ""}`;
 }

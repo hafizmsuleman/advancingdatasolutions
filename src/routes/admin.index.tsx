@@ -56,7 +56,7 @@ function Dashboard() {
               <Panel className="h-full p-4 transition-colors hover:border-primary/40">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <div className="font-semibold text-foreground">{b.company}</div>
+                    <div className="font-semibold text-foreground">{b.company} – {b.name}</div>
                     <div className="text-xs text-muted-foreground">{b.role} · {b.country}</div>
                   </div>
                   <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium tabular-nums">{b.duration} min</span>

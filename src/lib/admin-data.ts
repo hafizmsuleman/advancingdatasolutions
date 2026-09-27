@@ -49,6 +49,7 @@ export function useAdminBookings() {
           attendance: b.status === "attendance_confirmed" || !!b.attendance_confirmed_at,
           calendarFailed: !b.is_demo && b.calendar_sync_status === "failed" && ["confirmed", "attendance_confirmed"].includes(b.status),
           status, isNew: status === "confirmed" && Date.now() - Date.parse(b.created_at) < 36 * 3600_000,
+          cancelledAt: b.cancelled_at, cancelReason: b.cancel_reason,
         };
       });
     },
@@ -106,11 +107,12 @@ export function useAdminOutbox() {
     queryKey: ["admin", "outbox"],
     queryFn: async (): Promise<OutboxEmail[]> => {
       const demo = await demoMode();
-      let q = supabase.from("messages").select("*").order("scheduled_utc", { ascending: false }).limit(200);
+      let q = supabase.from("messages").select("*, bookings(status,cancel_reason)").order("scheduled_utc", { ascending: false }).limit(200);
       if (!demo) q = q.eq("is_demo", false);
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []).map((m) => ({ id: m.id, to: m.to_email, type: m.type, subject: m.subject, body: m.body, at: m.sent_at ?? m.scheduled_utc, status: m.status }));
+      return (data ?? []).map((m) => ({ id: m.id, to: m.to_email, type: m.type, subject: m.subject.replace(/\s*\(ADS-[A-Z0-9]+\)/g, ""), body: m.body.replace(/^Reference: ADS-[A-Z0-9]+\n?/gm, "").replace(/\sADS-[A-Z0-9]+\b/g, ""), at: m.sent_at ?? m.scheduled_utc, status: m.status,
+        cancellationNote: m.status === "cancelled" && ["nda_reminder", "reminder_24h", "reminder_1h"].includes(m.type) && (m.bookings?.status === "cancelled" || m.bookings?.status === "rescheduled") && m.bookings?.cancel_reason !== "slot_taken" }));
     },
   });
 }
