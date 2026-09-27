@@ -82,7 +82,7 @@ export async function runAutomations(origin: string) {
     .eq("id", 1).or(`automation_lock_until.is.null,automation_lock_until.lt.${nowIso}`).select("*").maybeSingle();
   if (!lease) return { skipped: true as const, summary: "Another run is in progress." };
 
-  const c = { sent: 0, sendFailed: 0, calendarRetried: 0, calendarFixed: 0, expired: 0, deleted: 0, cancelledReminders: 0, flagged: 0, released: 0, completed: 0, nudges: 0, cold: 0, demoReminders: 0 };
+  const c = { sent: 0, sendFailed: 0, calendarRetried: 0, calendarFixed: 0, expired: 0, deleted: 0, cancelledReminders: 0, flagged: 0, released: 0, completed: 0, nudges: 0, cold: 0, demoReminders: 0, rsvpConfirmed: 0, rsvpDeclined: 0 };
   try {
     const now = Date.now();
     const demoNow = now + lease.virtual_clock_offset_min * 60_000;
@@ -174,7 +174,7 @@ export async function runAutomations(origin: string) {
             await queue(d, {
               type: "admin_alert", booking_id: b.id, lead_id: b.lead_id, to_email: ADMIN_EMAIL,
               subject: `${DECLINED}: ${lead?.company ?? b.email}`,
-              body: `${lead?.full_name ?? b.email} from ${lead?.company ?? "—"} answered "No" to the calendar invite for the consultation on ${when(b.start_utc, "${TEAM}")}. The booking has not been cancelled — please follow up.`,
+              body: `${lead?.full_name ?? b.email} from ${lead?.company ?? "—"} answered "No" to the calendar invite for the consultation on ${when(b.start_utc, lease.team_timezone)}. The booking has not been cancelled — please follow up.`,
             }, false);
             c.rsvpDeclined++;
           }
@@ -254,7 +254,7 @@ export async function runAutomations(origin: string) {
     const out = await deliverDue(d);
     c.sent = out.sent; c.sendFailed = out.failed;
   } finally {
-    const summary = `Sent ${c.sent} emails (${c.sendFailed} failed), Expired ${c.expired}, deleted ${c.deleted}, completed ${c.completed}, flagged ${c.flagged}, released ${c.released}, nudges ${c.nudges}, demo reminders ${c.demoReminders}, cold ${c.cold}, reminders dropped ${c.cancelledReminders}, calendar retries ${c.calendarRetried} (${c.calendarFixed} fixed)`;
+    const summary = `Sent ${c.sent} emails (${c.sendFailed} failed), Expired ${c.expired}, deleted ${c.deleted}, completed ${c.completed}, flagged ${c.flagged}, released ${c.released}, calendar yes ${c.rsvpConfirmed}, calendar no ${c.rsvpDeclined}, nudges ${c.nudges}, demo reminders ${c.demoReminders}, cold ${c.cold}, reminders dropped ${c.cancelledReminders}, calendar retries ${c.calendarRetried} (${c.calendarFixed} fixed)`;
     await d.from("settings").update({ automation_lock_until: null, automation_last_run_at: new Date().toISOString(), automation_last_summary: summary }).eq("id", 1);
   }
   return { skipped: false as const, counts: c };
