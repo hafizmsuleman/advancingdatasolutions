@@ -151,3 +151,15 @@ export async function meetingLink(d: DB, bookingId: string) {
   ]);
   return b?.meet_link || s?.fallback_meeting_link || "";
 }
+
+/** The guest's RSVP on a booking's calendar event ("accepted" | "declined" | "tentative" | "needsAction" | null). */
+export async function eventRsvp(eventId: string, email: string): Promise<string | null> {
+  try {
+    const ev = await gcal(`/calendars/${CAL}/events/${encodeURIComponent(eventId)}?fields=status,attendees(email,responseStatus)`);
+    const a = (ev?.attendees ?? []) as { email?: string; responseStatus?: string }[];
+    return a.find((x) => x.email?.toLowerCase() === email.toLowerCase())?.responseStatus ?? null;
+  } catch (e) {
+    console.error("eventRsvp failed", e);
+    return null;
+  }
+}

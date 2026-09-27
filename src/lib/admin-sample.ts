@@ -36,6 +36,7 @@ export type AdminBooking = {
   status: BookingStatus;
   isNew: boolean;
   isDemo?: boolean;
+  declined?: boolean;
   cancelledAt?: string | null;
   cancelReason?: string | null;
 };

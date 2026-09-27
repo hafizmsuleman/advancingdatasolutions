@@ -25,7 +25,7 @@ const BADGE_CONFIG: Record<
     className: "border-success/30 bg-success/10 text-success",
   },
   "attendance-pending": {
-    label: "Attendance pending",
+    label: "Day-before check: pending",
     icon: Clock,
     className: "border-warning/30 bg-warning/10 text-warning",
   },

@@ -2,7 +2,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AREA_LABEL, BUDGET_LABEL, NEED_LABEL, PLATFORM_LABEL } from "./enums";
-import { useSyncExternalStore } from "react";
 import { setAdminTimeZone, tzLabel, type AdminBooking, type AdminLead, type OutboxEmail, type BookingStatus, type LeadStatus } from "./admin-sample";
 
 async function demoMode() {
@@ -15,25 +14,11 @@ export function useDemoMode() {
   return useQuery({ queryKey: ["admin", "demo"], queryFn: demoMode });
 }
 
-// ---- Show: Real / Demo / All (shared across admin pages; default Real) ----
+// Admin pages follow Settings → Demo mode: on = demo data only, off = real data only.
 export type DataView = "real" | "demo" | "all";
-let view: DataView = "real";
-const subs = new Set<() => void>();
-export function setDataView(v: DataView) {
-  view = v;
-  try { sessionStorage.setItem("ads-admin-view", v); } catch { /* ignore */ }
-  subs.forEach((f) => f());
-}
-function readView(): DataView {
-  try { const v = sessionStorage.getItem("ads-admin-view"); if (v === "demo" || v === "all") view = v; } catch { /* ignore */ }
-  return view;
-}
-if (typeof window !== "undefined") readView();
 export function useDataView(): DataView {
-  const v = useSyncExternalStore((f) => { subs.add(f); return () => subs.delete(f); }, () => view, () => "real" as DataView);
   const { data: demo } = useDemoMode();
-  // Demo/All only while demo mode is on; otherwise always Real.
-  return demo ? v : "real";
+  return demo ? "demo" : "real";
 }
 /** Apply the view to a query on a table with is_demo. */
 function scope<Q>(q: Q, v: DataView): Q {
@@ -51,10 +36,12 @@ export function useAdminBookings() {
   const v = useDataView();
   return useQuery({
     queryKey: ["admin", "bookings", v],
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
     queryFn: async (): Promise<AdminBooking[]> => {
       await demoMode();
       let q = supabase.from("bookings")
-        .select("*, leads(full_name,company,role,project_area,platform,need,timeline,budget_range,notes,email_verified_at), ndas(id)")
+        .select("*, leads(full_name,company,role,project_area,platform,need,timeline,budget_range,notes,email_verified_at), ndas(id), messages(type,subject)")
         .neq("status", "pending_verification").order("start_utc");
       q = scope(q, v);
       const { data, error } = await q;
@@ -77,6 +64,7 @@ export function useAdminBookings() {
           attendance: b.status === "attendance_confirmed" || !!b.attendance_confirmed_at,
           calendarFailed: !b.is_demo && b.calendar_sync_status === "failed" && ["confirmed", "attendance_confirmed"].includes(b.status),
           status, isNew: status === "confirmed" && Date.now() - Date.parse(b.created_at) < 36 * 3600_000,
+          declined: (b.messages ?? []).some((m) => m.type === "admin_alert" && m.subject.startsWith("Client declined in calendar")),
           cancelledAt: b.cancelled_at, cancelReason: b.cancel_reason, isDemo: b.is_demo,
         };
       });
@@ -88,6 +76,7 @@ export function useAdminStats() {
   const v = useDataView();
   return useQuery({
     queryKey: ["admin", "stats", v],
+    refetchInterval: 15_000,
     queryFn: async () => {
       const week = new Date(Date.now() - 7 * 86400_000).toISOString();
       let b = supabase.from("bookings").select("id", { count: "exact", head: true })
