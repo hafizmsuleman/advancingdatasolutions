@@ -19,15 +19,14 @@ export function SlotPicker(props: {
   excludeToken?: string | undefined;
 }) {
   const { duration, tz, onTzChange, selected, onSelect, excludeStart, excludeToken } = props;
-  const { busy, teamTz } = useBusy(excludeToken);
-  const [now] = useState(() => Date.now());
+  const { busy, teamTz, ready, now } = useBusy(excludeToken);
   const [editingTz, setEditingTz] = useState(false);
   const [day, setDay] = useState("");
   const tabsRef = useRef<HTMLDivElement>(null);
 
   const slots = useMemo(
-    () => generateSlots({ now, duration, visitorTz: tz, busy, teamTz }).filter((s) => s.start !== excludeStart),
-    [now, duration, tz, excludeStart, busy, teamTz],
+    () => (ready ? generateSlots({ now, duration, visitorTz: tz, busy, teamTz }).filter((s) => s.start !== excludeStart) : []),
+    [ready, now, duration, tz, excludeStart, busy, teamTz],
   );
   const days = useMemo(() => visitorDays(now, tz), [now, tz]);
   const byDay = useMemo(() => {
@@ -40,10 +39,11 @@ export function SlotPicker(props: {
   }, [slots, tz]);
 
   useEffect(() => {
+    if (!ready) return;
     if (day && days.some((d) => d.key === day)) return;
     const first = days.find((d) => byDay.has(d.key));
     setDay((first ?? days[0]!).key);
-  }, [days, byDay, day]);
+  }, [ready, days, byDay, day]);
 
   const fmtTime = (ms: number) => new Intl.DateTimeFormat(undefined, { timeZone: tz, hour: "numeric", minute: "2-digit" }).format(ms);
   const fmtDay = (ms: number, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(undefined, { timeZone: tz, ...o }).format(ms);
@@ -91,7 +91,7 @@ export function SlotPicker(props: {
 
       <div role="tabpanel" className="min-h-[120px]">
         {daySlots.length === 0 ? (
-          <p className="mt-6 rounded-lg border border-dashed border-border p-6 text-center text-muted-foreground">No times available</p>
+          <p className="mt-6 rounded-lg border border-dashed border-border p-6 text-center text-muted-foreground">{ready ? "No times available" : "Loading available times…"}</p>
         ) : (
           groups.map((g) => g.items.length ? (
             <div key={g.label} className="mt-6">

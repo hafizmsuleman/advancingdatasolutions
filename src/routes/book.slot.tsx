@@ -39,7 +39,7 @@ function SlotPage() {
   const tabsRef = useRef<HTMLDivElement>(null);
   const [day, setDay] = useState<string>("");
   const [selected, setSelected] = useState<number | null>(null);
-  const { busy, teamTz } = useBusy();
+  const { busy, teamTz, ready, now: liveNow } = useBusy();
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState("");
 
@@ -53,8 +53,8 @@ function SlotPage() {
 
   const duration = draft?.duration ?? 30;
   const slots = useMemo(
-    () => (now ? generateSlots({ now, duration, visitorTz: tz, busy, teamTz }) : []),
-    [now, duration, tz, busy, teamTz],
+    () => (now && ready ? generateSlots({ now: liveNow, duration, visitorTz: tz, busy, teamTz }) : []),
+    [now, ready, liveNow, duration, tz, busy, teamTz],
   );
   const days = useMemo(() => (now ? visitorDays(now, tz) : []), [now, tz]);
   const byDay = useMemo(() => {
@@ -67,11 +67,12 @@ function SlotPage() {
   }, [slots, tz]);
 
   useEffect(() => {
+    if (!ready) return;
     if (!days.length) return;
     if (day && days.some((d) => d.key === day)) return;
     const first = days.find((d) => byDay.has(d.key));
     setDay((first ?? days[0]!).key);
-  }, [days, byDay, day]);
+  }, [ready, days, byDay, day]);
 
   if (draft === undefined) return <main className="flex-1" />;
   if (!draft?.area || !draft.email) {
@@ -194,7 +195,7 @@ function SlotPage() {
 
           <div role="tabpanel" className="min-h-[120px]">
             {daySlots.length === 0 ? (
-              <p className="mt-6 rounded-lg border border-dashed border-border p-6 text-center text-muted-foreground">No times available</p>
+              <p className="mt-6 rounded-lg border border-dashed border-border p-6 text-center text-muted-foreground">{ready ? "No times available" : "Loading available times…"}</p>
             ) : (
               <>
                 <Group label="Morning" items={morning} />
