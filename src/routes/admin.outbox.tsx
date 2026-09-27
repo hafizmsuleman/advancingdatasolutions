@@ -3,7 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { RotateCw, Clock, CheckCircle2, XCircle, Ban } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Panel, Pill, PageIntro, ViewFilter, DemoTag, btn } from "@/components/admin-ui";
+import { Panel, Pill, PageIntro, DemoTag, btn } from "@/components/admin-ui";
 import { useAdminOutbox, useDataView, useInvalidateAdmin } from "@/lib/admin-data";
 import { supabase } from "@/integrations/supabase/client";
 import { browserTimeZone, fmtIn, type EmailStatus, type OutboxEmail } from "@/lib/admin-sample";
@@ -31,7 +31,9 @@ function Outbox() {
   const view = useDataView();
   const invalidate = useInvalidateAdmin();
   const [open, setOpen] = useState<OutboxEmail | null>(null);
-  const sorted = [...rows].sort((a, b) => b.at.localeCompare(a.at));
+  const [showCancelled, setShowCancelled] = useState(false);
+  const cancelledCount = rows.filter((e) => e.status === "cancelled").length;
+  const sorted = rows.filter((e) => showCancelled || e.status !== "cancelled").sort((a, b) => b.at.localeCompare(a.at));
   const retry = (id: string) => {
     supabase.from("messages").update({ status: "scheduled", error: null, retry_count: 0, scheduled_utc: new Date().toISOString() }).eq("id", id).then(({ error }) => {
       if (error) toast.error("Couldn't retry this email"); else { toast.success("Email queued to send again"); invalidate(); }
@@ -39,8 +41,11 @@ function Outbox() {
   };
   return (
     <div className="mx-auto max-w-4xl">
-      <ViewFilter />
       <PageIntro title="Outbox">Times shown in your time.</PageIntro>
+      <label className="mb-3 inline-flex min-h-9 cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+        <input type="checkbox" checked={showCancelled} onChange={(e) => setShowCancelled(e.target.checked)} className="h-4 w-4 accent-primary" />
+        Show cancelled ({cancelledCount})
+      </label>
       <Panel className="divide-y divide-border">
         {sorted.length === 0 && <p className="p-8 text-center text-sm text-muted-foreground">No emails yet.</p>}
         {sorted.map((e) => {

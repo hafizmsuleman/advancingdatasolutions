@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Panel, Pill, PageIntro, ViewFilter, DemoTag, btn, field, th, td } from "@/components/admin-ui";
+import { Panel, Pill, PageIntro, DemoTag, btn, field, th, td } from "@/components/admin-ui";
 import { blockSender, useAdminBookings, useDataView, useInvalidateAdmin } from "@/lib/admin-data";
 import { supabase } from "@/integrations/supabase/client";
 import { browserTimeZone, fmtIn, dayKeyIn, tzLabel, type AdminBooking, type BookingStatus } from "@/lib/admin-sample";
@@ -69,7 +69,6 @@ function Bookings() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      <ViewFilter />
       <PageIntro title="Bookings">{shown.length} of {rows.length} bookings</PageIntro>
       <div className="mb-3 flex flex-wrap gap-2">
         <label className="sr-only" htmlFor="f-status">Status</label>
@@ -113,13 +112,15 @@ function Bookings() {
                 <td className={td + " !whitespace-normal tabular-nums"}>{fmtIn(b.start, browserTimeZone())}</td>
                 <td className={td + " !whitespace-normal tabular-nums"}>{fmtIn(b.start, b.clientTz)}<div className="break-words text-xs text-muted-foreground">({tzLabel(b.clientTz)})</div></td>
                 <td className={td + " tabular-nums"}>{b.duration} min</td>
-                <td className={td + " !whitespace-normal"}><Pill tone={STATUS[b.status].tone}>{STATUS[b.status].label}</Pill>{b.calendarFailed && <div className="mt-1"><Pill tone="warning">Calendar not synced</Pill></div>}{b.status === "cancelled" && <div className="mt-1 text-xs text-muted-foreground">{cancellationText(b)}</div>}</td>
+                <td className={td + " !whitespace-normal"}><Pill tone={STATUS[b.status].tone}>{STATUS[b.status].label}</Pill>{b.calendarFailed && <div className="mt-1"><Pill tone="warning">Calendar not synced</Pill></div>}{b.declined && b.status === "confirmed" && <div className="mt-1"><Pill tone="error">Client declined in calendar</Pill></div>}{b.status === "cancelled" && <div className="mt-1 text-xs text-muted-foreground">{cancellationText(b)}</div>}</td>
                 <td className={td}>
                   <div className="flex flex-wrap justify-end gap-1 max-lg:min-w-[142px]">
                   {b.status === "confirmed" && (
                     <>
+                      {Date.parse(b.start) <= Date.now() && (<>
                       <button className={btn} onClick={() => set(b.id, "completed", `${b.company} marked completed`)}>Complete</button>
                       <button className={btn} onClick={() => set(b.id, "no_show", `${b.company} marked no-show`)}>No-show</button>
+                      </>)}
                       <button className={btn + " text-destructive"} onClick={() => confirm(`Cancel ${b.company}'s consultation?`) && set(b.id, "cancelled", "Booking cancelled")}>Cancel</button>
                     </>
                   )}

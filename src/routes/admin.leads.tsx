@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SITE_URL } from "@/lib/site";
 import { toast } from "sonner";
 import { Send, Ban, BadgeCheck } from "lucide-react";
-import { Panel, Pill, PageIntro, ViewFilter, DemoTag, btn, th, td } from "@/components/admin-ui";
+import { Panel, Pill, PageIntro, DemoTag, btn, th, td } from "@/components/admin-ui";
 import { browserTimeZone, fmtIn, type LeadStatus } from "@/lib/admin-sample";
 import { useAdminLeads, useDataView, useInvalidateAdmin } from "@/lib/admin-data";
 import { blockSender, unblockSender } from "@/lib/admin-data";
@@ -51,7 +51,6 @@ function Leads() {
   };
   return (
     <div className="mx-auto max-w-6xl">
-      <ViewFilter />
       <PageIntro title="Leads">Only verified leads receive nudges (24h and 48h, max 2), then go cold at 72h.</PageIntro>
       <Panel className="overflow-x-auto">
         <table className="w-full min-w-[820px]">

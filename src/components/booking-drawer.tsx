@@ -8,7 +8,8 @@ export function Badges({ b }: { b: AdminBooking }) {
     <div className="flex flex-wrap gap-1.5">
       {b.verified ? <Pill tone="success" icon={BadgeCheck}>Verified</Pill> : <Pill tone="neutral">Unverified</Pill>}
       {b.ndaSigned ? <Pill tone="success" icon={FileSignature}>NDA signed</Pill> : <Pill tone="neutral" icon={FileSignature}>NDA not signed</Pill>}
-      {b.attendance ? <Pill tone="success" icon={CalendarCheck}>Attendance confirmed</Pill> : <Pill tone="warning" icon={Clock}>Attendance unconfirmed</Pill>}
+      {b.attendance ? <Pill tone="success" icon={CalendarCheck}>Attendance confirmed</Pill> : <Pill tone="warning" icon={Clock}>Day-before check: pending</Pill>}
+      {b.declined && <Pill tone="error" icon={CalendarX}>Client declined in calendar</Pill>}
       {b.calendarFailed && <Pill tone="warning" icon={CalendarX}>Calendar not synced · fallback link in use</Pill>}
     </div>
   );

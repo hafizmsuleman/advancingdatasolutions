@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { CalendarDays, FileSignature, Mail, Timer, Inbox } from "lucide-react";
 import { Badges, BookingDrawer } from "@/components/booking-drawer";
-import { Panel, PageIntro, ViewFilter, DemoTag } from "@/components/admin-ui";
+import { Panel, PageIntro, DemoTag } from "@/components/admin-ui";
 import { browserTimeZone, fmtIn, tzLabel, type AdminBooking } from "@/lib/admin-sample";
 import { useAdminBookings, useAdminStats, useDataView } from "@/lib/admin-data";
 
@@ -31,7 +31,6 @@ function Dashboard() {
   ];
   return (
     <div className="mx-auto max-w-6xl">
-      <ViewFilter />
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map((s) => (
           <Panel key={s.label} className="p-4">
