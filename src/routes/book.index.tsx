@@ -29,6 +29,7 @@ export const Route = createFileRoute("/book/")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://advancingdatasolutions.lovable.app/book" }],
   }),
   validateSearch: (s: Record<string, unknown>) => (typeof s["t"] === "string" && s["t"].length <= 64 ? { t: s["t"] } : {}) as { t?: string },
   component: BookPage,
