@@ -42,7 +42,12 @@ async function isBlocked(db: Awaited<ReturnType<typeof admin>>, email: string) {
 
 /** Busy intervals for the slot picker (no client data leaves the server). */
 async function loadBusy(db: Awaited<ReturnType<typeof admin>>, excludeToken?: string): Promise<Busy[]> {
-  const { data: s } = await db.from("settings").select("demo_mode").eq("id", 1).single();
+  return (await loadSchedule(db, excludeToken)).busy;
+}
+
+/** Busy times plus the team's availability time zone (Settings → Your time zone). */
+async function loadSchedule(db: Awaited<ReturnType<typeof admin>>, excludeToken?: string): Promise<{ busy: Busy[]; teamTz: string }> {
+  const { data: s } = await db.from("settings").select("demo_mode, team_timezone").eq("id", 1).single();
   let q = db.from("bookings").select("start_utc,end_utc,manage_token,is_demo,google_event_id")
     .in("status", ["confirmed", "attendance_confirmed"])
     .gte("end_utc", new Date(Date.now() - 86400_000).toISOString());
@@ -53,12 +58,12 @@ async function loadBusy(db: Awaited<ReturnType<typeof admin>>, excludeToken?: st
     .map((b) => ({ start: Date.parse(b.start_utc), end: Date.parse(b.end_utc) }));
   // Google busy times (minus this booking's own event when rescheduling); only start/end leave the server.
   const google: Busy[] = cal.filter((c) => c.eventId !== own).map((c) => ({ start: c.start, end: c.end, calendar: true }));
-  return [...bookings, ...google];
+  return { busy: [...bookings, ...google], teamTz: s?.team_timezone || "Asia/Karachi" };
 }
 
 export const getBusy = createServerFn({ method: "GET" })
   .inputValidator((d: { excludeToken?: string } | undefined) => z.object({ excludeToken: z.string().max(64).optional() }).parse(d ?? {}))
-  .handler(async ({ data }) => loadBusy(await admin(), data.excludeToken));
+  .handler(async ({ data }) => loadSchedule(await admin(), data.excludeToken));
 
 async function queueMessage(db: Awaited<ReturnType<typeof admin>>, m: {
   type: "verification_code" | "confirmation" | "admin_new_booking" | "reschedule_notice" | "cancel_notice";
@@ -128,7 +133,7 @@ export const requestBooking = createServerFn({ method: "POST" })
 
     // Server-side slot re-check (availability, notice, horizon, local hours, cap, busy)
     const start = Date.parse(data.slotStart);
-    const valid = generateSlots({ now: Date.now(), duration: data.duration, visitorTz: data.timeZone, busy: await loadBusy(db) })
+    const valid = generateSlots({ now: Date.now(), duration: data.duration, visitorTz: data.timeZone, ...(await loadSchedule(db)) })
       .some((s) => s.start === start);
     if (!valid) return { error: "slot_taken" as const };
 
@@ -256,7 +261,7 @@ export const rescheduleBooking = createServerFn({ method: "POST" })
     if (!b || Date.parse(b.start_utc) < Date.now()) return { error: "not_found" as const };
     const start = Date.parse(data.slotStart);
     const duration = b.length_min as 30 | 60;
-    const valid = generateSlots({ now: Date.now(), duration, visitorTz: data.timeZone, busy: await loadBusy(db, data.token) })
+    const valid = generateSlots({ now: Date.now(), duration, visitorTz: data.timeZone, ...(await loadSchedule(db, data.token)) })
       .some((s) => s.start === start);
     if (!valid) return { error: "slot_taken" as const };
     const { data: s } = await db.from("settings").select("buffer_min").eq("id", 1).single();

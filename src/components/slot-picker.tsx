@@ -6,12 +6,7 @@ import { dateKey, generateSlots, partsIn, visitorDays, type Slot } from "@/lib/s
 import { useBusy } from "@/lib/use-busy";
 import { useRef } from "react";
 import { friendlyTimeZone } from "@/lib/time-zone-label";
-
-function allZones(current: string): string[] {
-  const fn = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf;
-  const list = fn ? fn("timeZone") : [];
-  return list.includes(current) ? list : [current, ...list];
-}
+import { TimeZoneSelect } from "@/components/time-zone-select";
 
 /** Shared slot picker: same scheduling rules as /book/slot. */
 export function SlotPicker(props: {
@@ -24,15 +19,15 @@ export function SlotPicker(props: {
   excludeToken?: string | undefined;
 }) {
   const { duration, tz, onTzChange, selected, onSelect, excludeStart, excludeToken } = props;
-  const { busy } = useBusy(excludeToken);
+  const { busy, teamTz } = useBusy(excludeToken);
   const [now] = useState(() => Date.now());
   const [editingTz, setEditingTz] = useState(false);
   const [day, setDay] = useState("");
   const tabsRef = useRef<HTMLDivElement>(null);
 
   const slots = useMemo(
-    () => generateSlots({ now, duration, visitorTz: tz, busy }).filter((s) => s.start !== excludeStart),
-    [now, duration, tz, excludeStart, busy],
+    () => generateSlots({ now, duration, visitorTz: tz, busy, teamTz }).filter((s) => s.start !== excludeStart),
+    [now, duration, tz, excludeStart, busy, teamTz],
   );
   const days = useMemo(() => visitorDays(now, tz), [now, tz]);
   const byDay = useMemo(() => {
@@ -70,10 +65,7 @@ export function SlotPicker(props: {
       {editingTz && (
         <div className="mt-3">
           <label htmlFor="tz" className="mb-1 block text-sm font-medium">Your time zone</label>
-          <select id="tz" value={tz} onChange={(e) => { onTzChange(e.target.value); onSelect(null); setEditingTz(false); }}
-            className="min-h-11 w-full rounded-md border border-input bg-card px-3 text-sm">
-            {allZones(tz).map((z) => <option key={z} value={z}>{friendlyTimeZone(z)}</option>)}
-          </select>
+          <TimeZoneSelect id="tz" value={tz} onChange={(z) => { onTzChange(z); onSelect(null); setEditingTz(false); }} />
         </div>
       )}
 
