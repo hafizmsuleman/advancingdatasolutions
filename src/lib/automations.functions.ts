@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { SITE_URL } from "@/lib/site";
-import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { runAutomations } from "./automations.server";
 
