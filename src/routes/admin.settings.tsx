@@ -239,7 +239,7 @@ function SettingsPage() {
         </div>
       </Section>
 
-      <Section title="Data view" desc="Which data admin pages show. Demo bookings never block public times, and demo emails go only to the admin.">
+       <Section title="Data view" desc="Which data admin pages show. Demo bookings never block public times, and demo emails are never delivered.">
         <label htmlFor="data-view" className="sr-only">Data view</label>
         <select id="data-view" className={field + " w-full max-w-xs"} value={view} onChange={(e) => changeView(e.target.value as DataView)}>
           <option value="all">All data</option>

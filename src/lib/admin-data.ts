@@ -98,13 +98,17 @@ export function useAdminStats() {
       // Queued emails count once due; real sending will flip them to "sent".
        let m = supabase.from("messages").select("id").in("status", ["sent", "scheduled"])
         .gte("scheduled_utc", week).lte("scheduled_utc", new Date().toISOString());
-       let upcoming = supabase.from("bookings").select("status,attendance_confirmed_at")
+       let upcoming = supabase.from("bookings").select("id", { count: "exact", head: true })
          .in("status", ["confirmed", "attendance_confirmed"]).gt("start_utc", new Date().toISOString());
-       b = scope(b, v); m = scope(m, v); upcoming = scope(upcoming, v);
+       let confirmed = supabase.from("bookings").select("id", { count: "exact", head: true })
+         .in("status", ["confirmed", "attendance_confirmed"])
+         .or("status.eq.attendance_confirmed,attendance_confirmed_at.not.is.null")
+         .gt("start_utc", new Date().toISOString());
+       b = scope(b, v); m = scope(m, v); upcoming = scope(upcoming, v); confirmed = scope(confirmed, v);
       const n = supabase.from("ndas").select("id, bookings!inner(is_demo)", { count: "exact", head: true }).gte("signed_at", week);
-       const [{ count: bookings }, { data: msgs }, { count: ndas }, { data: future }] = await Promise.all([b, m, v === "all" ? n : n.eq("bookings.is_demo", v === "demo"), upcoming]);
+       const [{ count: bookings }, { data: msgs }, { count: ndas }, { count: upcomingTotal }, { count: attendanceConfirmed }] = await Promise.all([b, m, v === "all" ? n : n.eq("bookings.is_demo", v === "demo"), upcoming, confirmed]);
        return { bookingsThisWeek: bookings ?? 0, ndasSigned: ndas ?? 0, emailsAutomated: msgs?.length ?? 0,
-         upcomingTotal: future?.length ?? 0, attendanceConfirmed: (future ?? []).filter((x) => x.status === "attendance_confirmed" || !!x.attendance_confirmed_at).length };
+         upcomingTotal: upcomingTotal ?? 0, attendanceConfirmed: attendanceConfirmed ?? 0 };
     },
   });
 }
