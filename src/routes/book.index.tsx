@@ -111,7 +111,7 @@ function BookPage() {
       );
       return;
     }
-    saveDraft({ ...data, duration: routeDuration(data), leadId: res.leadId, leadToken: form.leadToken });
+    saveDraft({ ...data, duration: routeDuration(data), leadId: res.leadId, leadToken: res.leadToken ?? form.leadToken });
     navigate({ to: "/book/session" });
   }
 

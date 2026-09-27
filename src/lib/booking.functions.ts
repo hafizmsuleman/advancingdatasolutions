@@ -112,22 +112,23 @@ export const submitLead = createServerFn({ method: "POST" })
     };
     if (data.leadToken) {
       const { data: l } = await db.from("leads").update(row).eq("booking_token", data.leadToken)
-        .not("status", "in", "(booked,cold)").select("id").maybeSingle();
-      if (l) return { leadId: l.id };
+        .not("status", "in", "(booked,cold)").select("id,booking_token").maybeSingle();
+      if (l) return { leadId: l.id, leadToken: l.booking_token };
     }
-    const { data: l, error } = await db.from("leads").insert({ ...row, source: "form" }).select("id").single();
+    const { data: l, error } = await db.from("leads").insert({ ...row, source: "form" }).select("id,booking_token").single();
     if (error) { console.error(error); return { error: "server" as const }; }
-    return { leadId: l.id };
+    return { leadId: l.id, leadToken: l.booking_token };
   });
 
 // ---------- Booking request + code email ----------
 export const requestBooking = createServerFn({ method: "POST" })
-  .inputValidator((d: { leadId: string; duration: 30 | 60; slotStart: string; timeZone: string }) =>
-    z.object({ leadId: z.string().uuid(), duration: z.union([z.literal(30), z.literal(60)]), slotStart: z.string().datetime(), timeZone: z.string().min(1).max(64) }).parse(d))
+  .inputValidator((d: { leadToken: string; duration: 30 | 60; slotStart: string; timeZone: string }) =>
+    z.object({ leadToken: z.string().min(16).max(64), duration: z.union([z.literal(30), z.literal(60)]), slotStart: z.string().datetime(), timeZone: z.string().min(1).max(64) }).parse(d))
   .handler(async ({ data }) => {
     const db = await admin();
     const vh = await visitorHash();
-    const { data: lead } = await db.from("leads").select("id,email,full_name,status").eq("id", data.leadId).single();
+    // The secret booking token proves the visitor is entitled to use this lead.
+    const { data: lead } = await db.from("leads").select("id,email,full_name,status").eq("booking_token", data.leadToken).single();
     if (!lead?.email) return { error: "server" as const };
     const blk = await isBlocked(db, lead.email);
     if (blk) return { error: blk };
@@ -183,8 +184,9 @@ export const resendCode = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const db = await admin();
     const vh = await visitorHash();
-    const { data: b } = await db.from("bookings").select("id,email,lead_id,status,leads(full_name)").eq("id", data.bookingId).single();
-    if (!b || b.status !== "pending_verification") return { error: "expired" as const };
+    const { data: b } = await db.from("bookings").select("id,email,lead_id,status,visitor_hash,leads(full_name)").eq("id", data.bookingId).single();
+    // Only the visitor who requested the booking may resend its code.
+    if (!b || b.status !== "pending_verification" || b.visitor_hash !== vh) return { error: "expired" as const };
     const { data: last } = await db.from("email_verifications").select("resend_count,last_sent_at").eq("booking_id", b.id).order("created_at", { ascending: false }).limit(1).single();
     if (!last) return { error: "expired" as const };
     if (last.resend_count >= 3) return { error: "max_resends" as const };
@@ -206,19 +208,23 @@ export const verifyCode = createServerFn({ method: "POST" })
   .inputValidator((d: { bookingId: string; code: string }) => z.object({ bookingId: z.string().uuid(), code: z.string().regex(/^\d{6}$/) }).parse(d))
   .handler(async ({ data }) => {
     const db = await admin();
-    // Live calendar re-check right before confirming: reject if the time now clashes.
-    const { data: pend } = await db.from("bookings").select("status,start_utc,end_utc").eq("id", data.bookingId).single();
-    if (pend?.status === "pending_verification") {
-      const s = Date.parse(pend.start_utc), e = Date.parse(pend.end_utc), buf = 15 * 60_000;
-      const clash = (await loadBusy(db)).some((x) => s < x.end + buf && e > x.start - buf);
-      if (clash) {
-        await db.from("bookings").update({ status: "cancelled", cancelled_at: new Date().toISOString(), cancel_reason: "slot_taken" }).eq("id", data.bookingId);
-        return { result: "slot_taken" as const };
-      }
-    }
+    // Verify the code first — only the code holder may affect this booking.
     const { data: result, error } = await db.rpc("confirm_booking", { p_booking_id: data.bookingId, p_code: data.code });
     if (error) { console.error(error); return { result: "server" as const }; }
     const r = result as "confirmed" | "wrong_code" | "expired" | "too_many_attempts" | "slot_taken" | "email_has_active_booking";
+    if (r === "confirmed") {
+      // Live calendar re-check right after confirming: release if the time now clashes.
+      const { data: pend } = await db.from("bookings").select("start_utc,end_utc").eq("id", data.bookingId).single();
+      if (pend) {
+        const s = Date.parse(pend.start_utc), e = Date.parse(pend.end_utc), buf = 15 * 60_000;
+        const clash = (await loadBusy(db)).some((x) => s < x.end + buf && e > x.start - buf);
+        if (clash) {
+          await db.from("bookings").update({ status: "cancelled", cancelled_at: new Date().toISOString(), cancel_reason: "slot_taken" }).eq("id", data.bookingId);
+          await cancelPendingReminders(db, data.bookingId);
+          return { result: "slot_taken" as const };
+        }
+      }
+    }
     if (r !== "confirmed") {
       if (r === "wrong_code") {
         const { data: v } = await db.from("email_verifications").select("attempts").eq("booking_id", data.bookingId).order("created_at", { ascending: false }).limit(1).single();

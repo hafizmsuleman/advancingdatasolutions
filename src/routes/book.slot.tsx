@@ -105,11 +105,11 @@ function SlotPage() {
 
   async function next() {
     if (!selectedSlot || sending) return;
-    if (!draft?.leadId) { navigate({ to: "/book" }); return; }
+    if (!draft?.leadToken) { navigate({ to: "/book" }); return; }
     setSending(true);
     setErr("");
     const slotStart = new Date(selectedSlot.start).toISOString();
-    const r = await requestBooking({ data: { leadId: draft.leadId, duration, slotStart, timeZone: tz } }).catch(() => ({ error: "server" as const }));
+    const r = await requestBooking({ data: { leadToken: draft.leadToken, duration, slotStart, timeZone: tz } }).catch(() => ({ error: "server" as const }));
     setSending(false);
     if ("error" in r) {
       const msg: Record<string, string> = {
