@@ -80,21 +80,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Advancing Data Solutions Booking Portal" },
+      { title: "Advancing Data Solutions – Book a free consultation" },
       {
         name: "description",
         content:
-          "Talk to an engineer about your AI, data, or web project. Book a call with Advancing Data Solutions.",
+          "Talk to an engineer about your AI, data or web project. Book a free consultation in 2 minutes, with the brief and NDA sorted before the call.",
       },
       { name: "author", content: "Advancing Data Solutions" },
       {
         property: "og:title",
-        content: "Advancing Data Solutions Booking Portal",
+        content: "Advancing Data Solutions – Book a free consultation",
       },
       {
         property: "og:description",
         content:
-          "Talk to an engineer about your AI, data, or web project. Book a call with Advancing Data Solutions.",
+          "Talk to an engineer about your AI, data or web project. Book a free consultation in 2 minutes, with the brief and NDA sorted before the call.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -104,7 +104,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/favicon.png", type: "image/png" },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
