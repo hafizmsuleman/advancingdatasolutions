@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { SITE_URL } from "@/lib/site";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -47,7 +48,7 @@ function InboxPage() {
   }
 
   const upd = <K extends keyof Extracted>(k: K, v: Extracted[K]) => setR((x) => (x ? { ...x, [k]: v } : x));
-  const link = saved ? `${window.location.origin}/book?t=${saved.token}` : "";
+  const link = saved ? `${SITE_URL}/book?t=${saved.token}` : "";
   const replyText = r ? r.reply.replace(LINK, saved ? link : PENDING) : "";
 
   async function save() {

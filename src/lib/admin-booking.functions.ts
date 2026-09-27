@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { SITE_URL } from "@/lib/site";
 import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -19,7 +20,7 @@ export const cancelAdminBooking = createServerFn({ method: "POST" })
     if (error || !changed?.length) throw new Error("Couldn't cancel booking");
     await cancelPendingReminders(db, b.id);
     await syncBookingCalendar(db, b.id);
-    const origin = new URL(getRequest().url).origin;
+    const origin = SITE_URL;
     const { error: messageError } = await db.from("messages").insert({
       type: "cancel_notice", to_email: b.email, booking_id: b.id, lead_id: b.lead_id,
       subject: "Your consultation has been cancelled", is_demo: b.is_demo,

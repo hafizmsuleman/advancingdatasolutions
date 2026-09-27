@@ -46,7 +46,7 @@ export function buildIcs(b: SampleBooking) {
   return [
     "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Advancing Data Solutions//Booking//EN", "METHOD:PUBLISH",
     "BEGIN:VEVENT",
-    `UID:${b.token}@book.advancingdatasolutions.com`,
+    `UID:${b.token}@advancingdatasolutions.lovable.app`,
     `DTSTAMP:${icsDate(Date.now())}`,
     `DTSTART:${icsDate(s)}`,
     `DTEND:${icsDate(e)}`,
