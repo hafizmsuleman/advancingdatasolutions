@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Panel, Pill, PageIntro, btn, field, th, td } from "@/components/admin-ui";
-import { blockSender, useAdminBookings, useInvalidateAdmin } from "@/lib/admin-data";
+import { Panel, Pill, PageIntro, ViewFilter, DemoTag, btn, field, th, td } from "@/components/admin-ui";
+import { blockSender, useAdminBookings, useDataView, useInvalidateAdmin } from "@/lib/admin-data";
 import { supabase } from "@/integrations/supabase/client";
 import { browserTimeZone, fmtIn, dayKeyIn, tzLabel, type AdminBooking, type BookingStatus } from "@/lib/admin-sample";
 import { BookingDrawer } from "@/components/booking-drawer";
@@ -31,6 +31,7 @@ const STATUS: Record<BookingStatus, { label: string; tone: "success" | "info" | 
 
 function Bookings() {
   const { data: rows = [] } = useAdminBookings();
+  const view = useDataView();
   const invalidate = useInvalidateAdmin();
   const cancelFn = useServerFn(cancelAdminBooking);
   const [status, setStatus] = useState("all");
@@ -68,6 +69,7 @@ function Bookings() {
 
   return (
     <div className="mx-auto max-w-6xl">
+      <ViewFilter />
       <PageIntro title="Bookings">{shown.length} of {rows.length} bookings</PageIntro>
       <div className="mb-3 flex flex-wrap gap-2">
         <label className="sr-only" htmlFor="f-status">Status</label>
@@ -101,8 +103,11 @@ function Bookings() {
             )}
             {shown.map((b) => (
               <tr key={b.id} className="hover:bg-muted/30">
-                <td className={td}>
-                  <button onClick={() => setOpen(b)} className="break-words text-left font-medium text-primary hover:underline">{b.company} – {b.name}</button>
+                <td className={td + " !whitespace-normal"}>
+                  <button onClick={() => setOpen(b)} className="block w-full min-w-0 text-left">
+                    <span className="block break-words font-medium leading-snug text-primary hover:underline">{b.company}<DemoTag show={view === "all" && b.isDemo} /></span>
+                    <span className="block break-words text-xs leading-snug text-muted-foreground">{b.name}</span>
+                  </button>
                 </td>
                 <td className={td}>{b.area}</td>
                 <td className={td + " !whitespace-normal tabular-nums"}>{fmtIn(b.start, browserTimeZone())}</td>

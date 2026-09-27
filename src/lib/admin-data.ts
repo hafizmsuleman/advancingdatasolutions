@@ -36,8 +36,8 @@ export function useDataView(): DataView {
   return demo ? v : "real";
 }
 /** Apply the view to a query on a table with is_demo. */
-function scope<Q extends { eq: (c: "is_demo", v: boolean) => Q }>(q: Q, v: DataView): Q {
-  return v === "all" ? q : q.eq("is_demo", v === "demo");
+function scope<Q>(q: Q, v: DataView): Q {
+  return v === "all" ? q : (q as unknown as { eq: (c: string, val: boolean) => Q }).eq("is_demo", v === "demo");
 }
 
 export function useInvalidateAdmin() {

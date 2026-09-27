@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { CalendarDays, FileSignature, Mail, Timer, Inbox } from "lucide-react";
 import { Badges, BookingDrawer } from "@/components/booking-drawer";
-import { Panel, PageIntro } from "@/components/admin-ui";
+import { Panel, PageIntro, ViewFilter, DemoTag } from "@/components/admin-ui";
 import { browserTimeZone, fmtIn, tzLabel, type AdminBooking } from "@/lib/admin-sample";
-import { useAdminBookings, useAdminStats } from "@/lib/admin-data";
+import { useAdminBookings, useAdminStats, useDataView } from "@/lib/admin-data";
 
 export const Route = createFileRoute("/admin/")({
   head: () => ({
@@ -21,6 +21,7 @@ function Dashboard() {
   const [open, setOpen] = useState<AdminBooking | null>(null);
   const { data: all = [] } = useAdminBookings();
   const { data: STATS = { bookingsThisWeek: 0, ndasSigned: 0, emailsAutomated: 0, hoursSaved: 0 } } = useAdminStats();
+  const view = useDataView();
   const fresh = all.filter((b) => b.isNew && b.status === "confirmed");
   const stats = [
     { label: "Bookings this week", value: STATS.bookingsThisWeek, icon: CalendarDays },
@@ -30,6 +31,7 @@ function Dashboard() {
   ];
   return (
     <div className="mx-auto max-w-6xl">
+      <ViewFilter />
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map((s) => (
           <Panel key={s.label} className="p-4">
@@ -56,7 +58,7 @@ function Dashboard() {
               <Panel className="h-full p-4 transition-colors hover:border-primary/40">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <div className="font-semibold text-foreground">{b.company} – {b.name}</div>
+                    <div className="font-semibold text-foreground">{b.company} – {b.name}<DemoTag show={view === "all" && b.isDemo} /></div>
                     <div className="text-xs text-muted-foreground">{b.role} · {b.country}</div>
                   </div>
                   <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium tabular-nums">{b.duration} min</span>
