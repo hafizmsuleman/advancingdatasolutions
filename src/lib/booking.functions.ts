@@ -64,7 +64,7 @@ async function loadSchedule(db: Awaited<ReturnType<typeof admin>>, excludeToken?
 
 export const getBusy = createServerFn({ method: "GET" })
   .inputValidator((d: { excludeToken?: string } | undefined) => z.object({ excludeToken: z.string().max(64).optional() }).parse(d ?? {}))
-  .handler(async ({ data }) => loadSchedule(await admin(), data.excludeToken));
+  .handler(async ({ data }) => ({ ...(await loadSchedule(await admin(), data.excludeToken)), serverNow: Date.now() }));
 
 async function queueMessage(db: Awaited<ReturnType<typeof admin>>, m: {
   type: "verification_code" | "confirmation" | "admin_new_booking" | "reschedule_notice" | "cancel_notice";
