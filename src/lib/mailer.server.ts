@@ -16,13 +16,13 @@ const TEMPLATE: Record<MsgType, string> = {
   nudge: "nudge", admin_alert: "admin-alert",
 };
 
-/** Send one due Outbox row. Demo rows (already addressed to the admin) only send while demo mode is on. */
-export async function deliverMessage(d: DB, id: string, demoMode?: boolean): Promise<"sent" | "failed" | "retry" | "skipped"> {
+/** Send one due Outbox row. Demo rows are never delivered: they are marked sent (demo) without touching the email service. */
+export async function deliverMessage(d: DB, id: string, _demoMode?: boolean): Promise<"sent" | "failed" | "retry" | "skipped"> {
   const { data: m } = await d.from("messages").select("*").eq("id", id).eq("status", "scheduled").maybeSingle();
   if (!m || Date.parse(m.scheduled_utc) > Date.now()) return "skipped";
   if (m.is_demo) {
-    if (demoMode === undefined) demoMode = !!(await d.from("settings").select("demo_mode").eq("id", 1).single()).data?.demo_mode;
-    if (!demoMode) return "skipped";
+    await d.from("messages").update({ status: "sent", sent_at: new Date().toISOString(), error: null }).eq("id", m.id).eq("status", "scheduled");
+    return "sent";
   }
   try {
     const r = await sendTemplateEmail(TEMPLATE[m.type], m.to_email, {
