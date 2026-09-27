@@ -1,5 +1,6 @@
 // Admin data via the signed-in browser client (RLS: admins only).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AREA_LABEL, BUDGET_LABEL, NEED_LABEL, PLATFORM_LABEL } from "./enums";
 import { setAdminTimeZone, tzLabel, type AdminBooking, type AdminLead, type OutboxEmail, type BookingStatus, type LeadStatus } from "./admin-sample";
@@ -14,11 +15,21 @@ export function useDemoMode() {
   return useQuery({ queryKey: ["admin", "demo"], queryFn: demoMode });
 }
 
-// Admin pages follow Settings → Demo mode: on = demo data only, off = real data only.
+// Admin pages follow Settings → Data view (stored per admin browser; default All data).
 export type DataView = "real" | "demo" | "all";
+const VIEW_KEY = "ads-admin-view";
+const listeners = new Set<() => void>();
+function readView(): DataView {
+  if (typeof window === "undefined") return "all";
+  const v = window.localStorage.getItem(VIEW_KEY);
+  return v === "real" || v === "demo" ? v : "all";
+}
+export function setDataView(v: DataView) {
+  window.localStorage.setItem(VIEW_KEY, v);
+  listeners.forEach((l) => l());
+}
 export function useDataView(): DataView {
-  const { data: demo } = useDemoMode();
-  return demo ? "demo" : "real";
+  return useSyncExternalStore((l) => { listeners.add(l); return () => listeners.delete(l); }, readView, () => "all");
 }
 /** Apply the view to a query on a table with is_demo. */
 function scope<Q>(q: Q, v: DataView): Q {
