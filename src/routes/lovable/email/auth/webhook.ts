@@ -13,7 +13,7 @@ const SITE_NAME = "Advancing Data Solutions"
 const SENDER_DOMAIN = "notify.advancingdatasolutions.com"
 const ROOT_DOMAIN = "advancingdatasolutions.com"
 const FROM_DOMAIN = "notify.advancingdatasolutions.com"
-const SITE_URL = `https://${ROOT_DOMAIN}`
+const SITE_URL = "https://advancingdatasolutions.lovable.app"
 
 // The SDK handler owns verification, dispatch, and retry semantics; this file
 // owns only the email decisions: subjects, templates, and per-type props.

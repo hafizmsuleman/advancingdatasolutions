@@ -33,7 +33,7 @@ function Outbox() {
   const [open, setOpen] = useState<OutboxEmail | null>(null);
   const sorted = [...rows].sort((a, b) => b.at.localeCompare(a.at));
   const retry = (id: string) => {
-    supabase.from("messages").update({ status: "scheduled", error: null, scheduled_utc: new Date().toISOString() }).eq("id", id).then(({ error }) => {
+    supabase.from("messages").update({ status: "scheduled", error: null, retry_count: 0, scheduled_utc: new Date().toISOString() }).eq("id", id).then(({ error }) => {
       if (error) toast.error("Couldn't retry this email"); else { toast.success("Email queued to send again"); invalidate(); }
     });
   };

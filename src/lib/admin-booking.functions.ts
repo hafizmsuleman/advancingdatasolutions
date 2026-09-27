@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { cancelPendingReminders } from "./automations.server";
 import { syncBookingCalendar } from "./calendar.server";
+import { deliverMessage } from "./mailer.server";
 
 export const cancelAdminBooking = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -20,11 +21,12 @@ export const cancelAdminBooking = createServerFn({ method: "POST" })
     await cancelPendingReminders(db, b.id);
     await syncBookingCalendar(db, b.id);
     const origin = SITE_URL;
-    const { error: messageError } = await db.from("messages").insert({
+    const { data: row, error: messageError } = await db.from("messages").insert({
       type: "cancel_notice", to_email: b.email, booking_id: b.id, lead_id: b.lead_id,
       subject: "Your consultation has been cancelled", is_demo: b.is_demo,
       body: `We've cancelled your consultation and released the time. You're welcome to book a new time:\n${origin}/book\n\nThe Advancing Data Solutions team`,
-    });
+    }).select("id").single();
+    if (row) await deliverMessage(db, row.id);
     if (messageError) throw new Error("Booking cancelled, but the notice couldn't be queued");
     return { ok: true };
   });
