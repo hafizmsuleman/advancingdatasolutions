@@ -65,7 +65,7 @@ export function sampleBookings(now: number): Busy[] {
 
 export type Slot = { start: number; end: number };
 
-export function generateSlots(opts: { now: number; duration: 30 | 60; visitorTz: string; busy: Busy[]; teamTz?: string }) {
+export function generateSlots(opts: { now: number; duration: 30 | 60; visitorTz: string; busy: Busy[]; teamTz?: string | undefined }) {
   const { now, duration, visitorTz, busy } = opts;
   const team = opts.teamTz || TEAM_TZ;
   const slots: Slot[] = [];
