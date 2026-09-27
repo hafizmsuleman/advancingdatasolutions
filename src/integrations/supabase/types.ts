@@ -572,6 +572,7 @@ export type Database = {
         }[]
       }
       is_admin: { Args: never; Returns: boolean }
+      reset_demo_data: { Args: never; Returns: undefined }
       sign_nda: {
         Args: { p_name: string; p_title: string; p_token: string }
         Returns: string
