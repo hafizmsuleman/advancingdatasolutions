@@ -9,6 +9,7 @@ import { BUDGET_TO_DB, NEED_TO_DB, PLATFORM_TO_DB } from "./enums";
 import { generateSlots, type Busy } from "./slots";
 import { cancelPendingReminders, scheduleReminders } from "./automations.server";
 import { calendarBusy, meetingLink, syncBookingCalendar } from "./calendar.server";
+import { deliverMessage } from "./mailer.server";
 
 const DISPOSABLE = ["mailinator.com", "guerrillamail.com", "10minutemail.com", "tempmail.com", "temp-mail.org", "yopmail.com", "trashmail.com", "sharklasers.com", "getnada.com", "dispostable.com", "maildrop.cc", "throwawaymail.com"];
 const stripLinks = (s: string) => s.replace(/(https?:\/\/|www\.)\S+/gi, "").trim();
@@ -70,11 +71,15 @@ async function queueMessage(db: Awaited<ReturnType<typeof admin>>, m: {
   type: "verification_code" | "confirmation" | "admin_new_booking" | "reschedule_notice" | "cancel_notice";
   to: string; subject: string; body: string; bookingId?: string; leadId?: string; minutes?: number;
 }) {
-  await db.from("messages").insert({
+  const { data: row } = await db.from("messages").insert({
     type: m.type, to_email: m.to, subject: m.subject, body: m.body,
     booking_id: m.bookingId ?? null, lead_id: m.leadId ?? null, minutes_saved: m.minutes ?? 5,
-  });
+  }).select("id").single();
+  if (row) await deliverMessage(db, row.id);
 }
+
+const SIGN = "\n\nThe Advancing Data Solutions team";
+const gcal = (d: number) => new Date(d).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 
 // ---------- Lead creation ----------
 const leadSchema = z.object({
@@ -232,25 +237,28 @@ export const verifyCode = createServerFn({ method: "POST" })
       }
       return { result: r };
     }
-    const { data: b } = await db.from("bookings").select("id,manage_token,code,email,start_utc,length_min,client_tz,lead_id,created_at,leads(full_name,company)").eq("id", data.bookingId).single();
+    const { data: b } = await db.from("bookings").select("id,manage_token,code,email,start_utc,end_utc,length_min,client_tz,lead_id,created_at,leads(full_name,company,role,project_area,need,platform)").eq("id", data.bookingId).single();
     if (b) {
-      const lead = b.leads as { full_name: string | null; company: string | null } | null;
+      const lead = b.leads as { full_name: string | null; company: string | null; role: string | null; project_area: string | null; need: string | null; platform: string | null } | null;
       const when = new Intl.DateTimeFormat("en-GB", { timeZone: b.client_tz, dateStyle: "full", timeStyle: "short" }).format(Date.parse(b.start_utc));
       await syncBookingCalendar(db, b.id);
       const link = await meetingLink(db, b.id);
       const origin = SITE_URL;
       const short = Date.parse(b.start_utc) - Date.parse(b.created_at) < 26 * 3600_000;
       const attend = short ? `\n\nPlease confirm you can attend. If we don't hear from you 6 hours before the start, we'll release the time:\n${origin}/attend/${b.manage_token}` : "";
+      const cal = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("Free consultation with Advancing Data Solutions")}&dates=${gcal(Date.parse(b.start_utc))}/${gcal(Date.parse(b.end_utc))}&details=${encodeURIComponent(`Meeting link: ${link}\nManage your booking: ${origin}/booked/${b.manage_token}`)}&location=${encodeURIComponent(link)}`;
+      const { data: st } = await db.from("settings").select("team_timezone").eq("id", 1).single();
+      const fmt = (tz: string) => new Intl.DateTimeFormat("en-GB", { timeZone: tz, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(Date.parse(b.start_utc));
       await queueMessage(db, {
         type: "confirmation", to: b.email, bookingId: b.id, leadId: b.lead_id, minutes: 10,
         subject: `You're booked: Free Consultation (${b.length_min} min)`,
-        body: `Hi ${(lead?.full_name ?? "").split(" ")[0] || "there"},\n\nThanks for booking a free ${b.length_min}-minute consultation with our engineers. Your call is on ${when} (your time).\n\nMeeting link: ${link}${attend}\n\nSpeak soon,\nAdvancing Data Solutions`,
+        body: `Hi ${(lead?.full_name ?? "").split(" ")[0] || "there"},\n\nThanks for booking a free ${b.length_min}-minute consultation with our engineers. Your call is on ${when} (your time).\n\nMeeting link: ${link}${attend}\n\nAdd it to your calendar: ${cal}\n\nSo you can share details freely on the call, please sign our short mutual NDA before the consultation: ${origin}/nda/${b.manage_token}\n\nNeed another time? ${origin}/reschedule/${b.manage_token}\n\nCan't make it? ${origin}/cancel/${b.manage_token}${SIGN}`,
       });
       await scheduleReminders(db, { ...b, full_name: lead?.full_name ?? null }, origin, { nda: true });
       await queueMessage(db, {
         type: "admin_new_booking", to: "contact@advancingdatasolutions.com", bookingId: b.id, leadId: b.lead_id,
         subject: `New booking: ${lead?.company ?? b.email} (${b.length_min} min)`,
-        body: `${lead?.full_name ?? ""} from ${lead?.company ?? ""} booked for ${new Date(b.start_utc).toISOString()}.`,
+        body: `${lead?.full_name ?? b.email} from ${lead?.company ?? "—"} booked a free ${b.length_min}-minute consultation.\n\nYour time: ${fmt(st?.team_timezone || "Asia/Karachi")}\nClient's time: ${fmt(b.client_tz)}\n\nEmail: ${b.email}\nRole: ${lead?.role ?? "—"}\nArea: ${lead?.project_area ?? "—"} · Need: ${lead?.need ?? "—"} · Platform: ${lead?.platform ?? "—"}\n\n${origin}/admin/bookings`,
       });
       return { result: r, token: b.manage_token };
     }
@@ -289,7 +297,7 @@ export const rescheduleBooking = createServerFn({ method: "POST" })
     await queueMessage(db, {
       type: "reschedule_notice", to: b.email, bookingId: b.id, leadId: b.lead_id,
       subject: "Your consultation has moved",
-      body: `Your consultation is now on ${new Intl.DateTimeFormat("en-GB", { timeZone: data.timeZone, dateStyle: "full", timeStyle: "short" }).format(start)} (your time). The meeting link stays the same.${attend}\n\nAdvancing Data Solutions`,
+      body: `Your consultation is now on ${new Intl.DateTimeFormat("en-GB", { timeZone: data.timeZone, dateStyle: "full", timeStyle: "short" }).format(start)} (your time). The meeting link stays the same.${attend}\n\nView your booking: ${origin}/booked/${data.token}${SIGN}`,
     });
     await scheduleReminders(db, {
       id: b.id, email: b.email, code: b.code, start_utc: new Date(start).toISOString(), length_min: b.length_min,
@@ -309,11 +317,12 @@ export const cancelBooking = createServerFn({ method: "POST" })
     if (b) await cancelPendingReminders(db, b.id);
     if (b) await syncBookingCalendar(db, b.id);
     if (b) {
-      const { error } = await db.from("messages").insert({
+      const { data: row, error } = await db.from("messages").insert({
         type: "cancel_notice", to_email: b.email, booking_id: b.id, lead_id: b.lead_id, is_demo: b.is_demo,
         subject: "Your consultation has been cancelled",
-        body: `Your consultation has been cancelled and the time released. You're welcome to book a new time whenever suits you:\n${SITE_URL}/book\n\nAdvancing Data Solutions`,
-      });
+        body: `Your consultation has been cancelled and the time released. You're welcome to book a new time whenever suits you:\n${SITE_URL}/book${SIGN}`,
+      }).select("id").single();
+      if (row) await deliverMessage(db, row.id);
       if (error) throw new Error("Booking cancelled, but the notice couldn't be queued");
     }
     return { ok: true as const };

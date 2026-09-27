@@ -3,6 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { syncBookingCalendar } from "./calendar.server";
+import { deliverDue, deliverMessage } from "./mailer.server";
 
 type DB = SupabaseClient<Database>;
 type MsgType = Database["public"]["Enums"]["message_type"];
@@ -66,7 +67,8 @@ export async function scheduleReminders(d: DB, b: BookingForMail, origin: string
 }
 
 async function queue(d: DB, m: Database["public"]["Tables"]["messages"]["Insert"], demo: boolean) {
-  await d.from("messages").insert({ ...m, is_demo: demo, to_email: demo ? ADMIN_EMAIL : m.to_email });
+  const { data: row } = await d.from("messages").insert({ ...m, is_demo: demo, to_email: demo ? ADMIN_EMAIL : m.to_email }).select("id").single();
+  if (row) await deliverMessage(d, row.id);
 }
 
 /** One run of every automation. Bounded per run; single-flight via a lease on settings. */
@@ -78,7 +80,7 @@ export async function runAutomations(origin: string) {
     .eq("id", 1).or(`automation_lock_until.is.null,automation_lock_until.lt.${nowIso}`).select("*").maybeSingle();
   if (!lease) return { skipped: true as const, summary: "Another run is in progress." };
 
-  const c = { calendarRetried: 0, calendarFixed: 0, expired: 0, deleted: 0, cancelledReminders: 0, flagged: 0, released: 0, completed: 0, nudges: 0, cold: 0, demoReminders: 0 };
+  const c = { sent: 0, sendFailed: 0, calendarRetried: 0, calendarFixed: 0, expired: 0, deleted: 0, cancelledReminders: 0, flagged: 0, released: 0, completed: 0, nudges: 0, cold: 0, demoReminders: 0 };
   try {
     const now = Date.now();
     const demoNow = now + lease.virtual_clock_offset_min * 60_000;
@@ -222,8 +224,11 @@ export async function runAutomations(origin: string) {
       }, l.is_demo);
       c.nudges++;
     }
+    // 7. Send every due email (reminders, retries of failed sends).
+    const out = await deliverDue(d);
+    c.sent = out.sent; c.sendFailed = out.failed;
   } finally {
-    const summary = `Expired ${c.expired}, deleted ${c.deleted}, completed ${c.completed}, flagged ${c.flagged}, released ${c.released}, nudges ${c.nudges}, demo reminders ${c.demoReminders}, cold ${c.cold}, reminders dropped ${c.cancelledReminders}, calendar retries ${c.calendarRetried} (${c.calendarFixed} fixed)`;
+    const summary = `Sent ${c.sent} emails (${c.sendFailed} failed), Expired ${c.expired}, deleted ${c.deleted}, completed ${c.completed}, flagged ${c.flagged}, released ${c.released}, nudges ${c.nudges}, demo reminders ${c.demoReminders}, cold ${c.cold}, reminders dropped ${c.cancelledReminders}, calendar retries ${c.calendarRetried} (${c.calendarFixed} fixed)`;
     await d.from("settings").update({ automation_lock_until: null, automation_last_run_at: new Date().toISOString(), automation_last_summary: summary }).eq("id", 1);
   }
   return { skipped: false as const, counts: c };
