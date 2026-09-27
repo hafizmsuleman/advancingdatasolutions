@@ -67,11 +67,12 @@ function SlotPage() {
   }, [slots, tz]);
 
   useEffect(() => {
+    if (!ready) return;
     if (!days.length) return;
     if (day && days.some((d) => d.key === day)) return;
     const first = days.find((d) => byDay.has(d.key));
     setDay((first ?? days[0]!).key);
-  }, [days, byDay, day]);
+  }, [ready, days, byDay, day]);
 
   if (draft === undefined) return <main className="flex-1" />;
   if (!draft?.area || !draft.email) {
