@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
+import { SITE_URL } from "@/lib/site";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { runAutomations } from "./automations.server";
 
@@ -8,5 +8,5 @@ export const runAutomationsNow = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { data: ok } = await context.supabase.rpc("is_admin");
     if (!ok) throw new Error("Forbidden");
-    return runAutomations(new URL(getRequest().url).origin);
+    return runAutomations(SITE_URL);
   });

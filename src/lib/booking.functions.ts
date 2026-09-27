@@ -1,4 +1,5 @@
 // Public backend functions for the booking flow. They run on the server with the
+import { SITE_URL } from "@/lib/site";
 // service role; the browser never touches tables or the privileged SQL functions.
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
@@ -231,7 +232,7 @@ export const verifyCode = createServerFn({ method: "POST" })
       const when = new Intl.DateTimeFormat("en-GB", { timeZone: b.client_tz, dateStyle: "full", timeStyle: "short" }).format(Date.parse(b.start_utc));
       await syncBookingCalendar(db, b.id);
       const link = await meetingLink(db, b.id);
-      const origin = new URL(getRequest().url).origin;
+      const origin = SITE_URL;
       const short = Date.parse(b.start_utc) - Date.parse(b.created_at) < 26 * 3600_000;
       const attend = short ? `\n\nPlease confirm you can attend. If we don't hear from you 6 hours before the start, we'll release the time:\n${origin}/attend/${b.manage_token}` : "";
       await queueMessage(db, {
@@ -273,7 +274,7 @@ export const rescheduleBooking = createServerFn({ method: "POST" })
     }).eq("id", b.id);
     if (error) return { error: "slot_taken" as const };
     await syncBookingCalendar(db, b.id);
-    const origin = new URL(getRequest().url).origin;
+    const origin = SITE_URL;
     const { data: full } = await db.from("bookings").select("manage_token, leads(full_name), ndas(id)").eq("id", b.id).single();
     const signed = Array.isArray(full?.ndas) ? full.ndas.length > 0 : !!full?.ndas;
     const short = start - Date.now() < 26 * 3600_000;
@@ -305,7 +306,7 @@ export const cancelBooking = createServerFn({ method: "POST" })
       const { error } = await db.from("messages").insert({
         type: "cancel_notice", to_email: b.email, booking_id: b.id, lead_id: b.lead_id, is_demo: b.is_demo,
         subject: "Your consultation has been cancelled",
-        body: `Your consultation has been cancelled and the time released. You're welcome to book a new time whenever suits you:\n${new URL(getRequest().url).origin}/book\n\nAdvancing Data Solutions`,
+        body: `Your consultation has been cancelled and the time released. You're welcome to book a new time whenever suits you:\n${SITE_URL}/book\n\nAdvancing Data Solutions`,
       });
       if (error) throw new Error("Booking cancelled, but the notice couldn't be queued");
     }

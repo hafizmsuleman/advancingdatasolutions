@@ -11,9 +11,11 @@ export const Route = createFileRoute("/privacy")({
       { name: "description", content: DESC },
       { property: "og:title", content: TITLE },
       { property: "og:description", content: DESC },
+      { property: "og:url", content: "https://advancingdatasolutions.lovable.app/privacy" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "canonical", href: "https://advancingdatasolutions.lovable.app/privacy" }],
   }),
   component: PrivacyPage,
 });

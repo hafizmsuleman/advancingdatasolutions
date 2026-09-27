@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { SITE_URL } from "@/lib/site";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import logoAsset from "@/assets/ads-logo-horizontal.svg.asset.json";
@@ -37,7 +38,7 @@ function AdminLogin() {
 
   async function forgot() {
     if (!email.trim()) { setMsg({ kind: "error", text: "Enter your email first, then choose Forgot password." }); return; }
-    await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/reset-password` });
+    await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${SITE_URL}/reset-password` });
     setMsg({ kind: "info", text: "If that address has an admin account, we've emailed a link to set a new password." });
   }
 
@@ -69,7 +70,6 @@ function AdminLogin() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@advancingdatasolutions.com"
               className="h-11"
             />
           </div>

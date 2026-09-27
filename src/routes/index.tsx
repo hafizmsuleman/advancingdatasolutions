@@ -31,11 +31,13 @@ export const Route = createFileRoute("/")({
         content:
           "Talk to an engineer about your AI, data or web project. Book a free consultation in 2 minutes, with the brief and NDA sorted before the call.",
       },
+      { property: "og:url", content: "https://advancingdatasolutions.lovable.app" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { property: "og:image", content: "https://book.advancingdatasolutions.com/og-image.png" },
-      { name: "twitter:image", content: "https://book.advancingdatasolutions.com/og-image.png" },
+      { property: "og:image", content: "https://advancingdatasolutions.lovable.app/og-image.png" },
+      { name: "twitter:image", content: "https://advancingdatasolutions.lovable.app/og-image.png" },
     ],
+    links: [{ rel: "canonical", href: "https://advancingdatasolutions.lovable.app" }],
   }),
   component: Index,
 });

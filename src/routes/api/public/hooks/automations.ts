@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { SITE_URL } from "@/lib/site";
 import { runAutomations } from "@/lib/automations.server";
 
 // Called every 5 minutes by the database scheduler with a private bearer token.
@@ -11,7 +12,7 @@ export const Route = createFileRoute("/api/public/hooks/automations")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data: ok } = await supabaseAdmin.rpc("check_job_token", { p_name: "automations", p_token: token });
         if (!ok) return new Response("Unauthorized", { status: 401 });
-        return Response.json(await runAutomations(new URL(request.url).origin));
+        return Response.json(await runAutomations(SITE_URL));
       },
     },
   },

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { SITE_URL } from "@/lib/site";
 import { toast } from "sonner";
 import { Send, Ban, BadgeCheck } from "lucide-react";
 import { Panel, Pill, PageIntro, ViewFilter, DemoTag, btn, th, td } from "@/components/admin-ui";
@@ -32,7 +33,7 @@ function Leads() {
   const view = useDataView();
   const invalidate = useInvalidateAdmin();
   const resend = async (l: (typeof rows)[number]) => {
-    const link = `${window.location.origin}/book?t=${l.bookingToken}`;
+    const link = `${SITE_URL}/book?t=${l.bookingToken}`;
     const { error } = await supabase.from("messages").insert({
       type: "nudge", to_email: l.email, lead_id: l.id,
       subject: "Your booking link for a free consultation",
