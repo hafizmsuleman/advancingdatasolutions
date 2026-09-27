@@ -1,8 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { Clock, Video } from "lucide-react";
+import { Clock } from "lucide-react";
 
 import { fetchBooking, type SampleBooking } from "@/lib/sample-bookings";
+import { friendlyTimeZone } from "@/lib/time-zone-label";
 
 export function Notice({ title, body, children }: { title: string; body: string; children?: ReactNode }) {
   return (
@@ -50,13 +51,8 @@ export function BookingSummary({ b, label = "Your consultation" }: { b: SampleBo
         <Clock className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
         <div>
           <p className="text-sm text-muted-foreground">{label} · <span className="tnums">{b.duration} minutes</span></p>
-          <p className="mt-1 font-medium tnums">{date}<br />{t(s)} – {t(e)} <span className="text-sm font-normal text-muted-foreground">({tz.replace(/_/g, " ")})</span></p>
+          <p className="mt-1 font-medium tnums">{date}<br />{t(s)} – {t(e)} <span className="text-sm font-normal text-muted-foreground">({friendlyTimeZone(tz)})</span></p>
         </div>
-      </div>
-      <div className="flex items-center gap-3 border-t border-border p-4 text-sm">
-        <Video className="h-5 w-5 shrink-0 text-primary" aria-hidden />
-        <span className="text-muted-foreground">Reference</span>
-        <span className="ml-auto font-semibold tracking-wide tnums">{b.code}</span>
       </div>
     </div>
   );

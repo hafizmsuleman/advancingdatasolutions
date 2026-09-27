@@ -1,0 +1,30 @@
+import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { z } from "zod";
+import { cancelPendingReminders } from "./automations.server";
+import { syncBookingCalendar } from "./calendar.server";
+
+export const cancelAdminBooking = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: allowed } = await context.supabase.rpc("is_admin");
+    if (!allowed) throw new Error("Forbidden");
+    const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
+    const { data: b } = await db.from("bookings").select("id,email,lead_id,status,is_demo").eq("id", data.id).single();
+    if (!b || !["confirmed", "attendance_confirmed"].includes(b.status)) throw new Error("Booking is no longer active");
+    const { data: changed, error } = await db.from("bookings").update({ status: "cancelled", cancelled_at: new Date().toISOString(), cancel_reason: "Cancelled by our team" })
+      .eq("id", b.id).in("status", ["confirmed", "attendance_confirmed"]).select("id");
+    if (error || !changed?.length) throw new Error("Couldn't cancel booking");
+    await cancelPendingReminders(db, b.id);
+    await syncBookingCalendar(db, b.id);
+    const origin = new URL(getRequest().url).origin;
+    const { error: messageError } = await db.from("messages").insert({
+      type: "cancel_notice", to_email: b.email, booking_id: b.id, lead_id: b.lead_id,
+      subject: "Your consultation has been cancelled", is_demo: b.is_demo,
+      body: `We've cancelled your consultation and released the time. You're welcome to book a new time:\n${origin}/book\n\nThe Advancing Data Solutions team`,
+    });
+    if (messageError) throw new Error("Booking cancelled, but the notice couldn't be queued");
+    return { ok: true };
+  });

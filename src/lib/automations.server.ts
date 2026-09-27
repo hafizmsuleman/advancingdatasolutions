@@ -60,7 +60,7 @@ export async function scheduleReminders(d: DB, b: BookingForMail, origin: string
   if (start - H > now) rows.push({
     type: "reminder_1h", booking_id: b.id, lead_id: b.lead_id, to_email: b.email, scheduled_utc: new Date(start - H).toISOString(),
     subject: "Starting in 1 hour: your consultation",
-    body: `${hi}Your consultation starts in one hour, at ${when(b.start_utc, b.client_tz)} (your time).\n\nMeeting link: ${link}\nReference: ${b.code}${SIGN}`,
+    body: `${hi}Your consultation starts in one hour, at ${when(b.start_utc, b.client_tz)} (your time).\n\nMeeting link: ${link}${SIGN}`,
   });
   if (rows.length) await d.from("messages").insert(rows);
 }
@@ -147,7 +147,7 @@ export async function runAutomations(origin: string) {
           for (const w of wants.filter((x) => !(have ?? []).some((h) => h.type === x))) {
             const subj = w === "nda_reminder" ? "Your NDA is ready to sign" : w === "reminder_24h" ? "Tomorrow: your consultation" : "Starting in 1 hour: your consultation";
             await queue(d, { type: w, booking_id: b.id, lead_id: b.lead_id, to_email: b.email, subject: subj,
-              body: `${first(lead?.full_name)}'s consultation ${b.code} on ${when(b.start_utc, b.client_tz)} (demo, simulated time).\n\n${origin}/booked/${b.manage_token}${SIGN}` }, true);
+              body: `${first(lead?.full_name)}'s consultation on ${when(b.start_utc, b.client_tz)} (demo, simulated time).\n\n${origin}/booked/${b.manage_token}${SIGN}` }, true);
             c.demoReminders++;
           }
         }
@@ -172,8 +172,8 @@ export async function runAutomations(origin: string) {
         if (ex?.length) continue;
         await queue(d, {
           type: "admin_alert", booking_id: b.id, lead_id: b.lead_id, to_email: ADMIN_EMAIL,
-          subject: `Attendance unconfirmed: ${lead?.company ?? b.email} (${b.code})`,
-          body: `${lead?.full_name ?? b.email} from ${lead?.company ?? "—"} hasn't confirmed attendance for ${b.code}. The time will be released ${lease.attendance_release_hours} hours before the start if they don't confirm.\n\n${key}`,
+          subject: `Attendance unconfirmed: ${lead?.company ?? b.email}`,
+          body: `${lead?.full_name ?? b.email} from ${lead?.company ?? "—"} hasn't confirmed attendance. The time will be released ${lease.attendance_release_hours} hours before the start if they don't confirm.\n\n${key}`,
         }, b.is_demo);
         c.flagged++;
       }

@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { runAutomationsNow } from "@/lib/automations.functions";
+import { resetDemoData } from "@/lib/demo-reset.functions";
 import { useInvalidateAdmin } from "@/lib/admin-data";
 import { BUDGET_LABEL, BUDGET_TO_DB } from "@/lib/enums";
 import { toast } from "sonner";
@@ -57,6 +58,8 @@ function SettingsPage() {
   const [availabilityTz, setAvailabilityTz] = useState("Asia/Karachi");
   const invalidate = useInvalidateAdmin();
   const runFn = useServerFn(runAutomationsNow);
+  const resetFn = useServerFn(resetDemoData);
+  const [resetting, setResetting] = useState(false);
   const [running, setRunning] = useState(false);
   const [lastRun, setLastRun] = useState<{ at: string; summary: string } | null>(null);
   const WD = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
@@ -132,6 +135,17 @@ function SettingsPage() {
     if (h > 0) await runNow();
     else invalidate();
   }
+  async function restoreDemo() {
+    if (!demo || !window.confirm("Restore the original sample bookings, leads and emails? Real data will stay as it is.")) return;
+    setResetting(true);
+    try {
+      await resetFn();
+      setOffset(0);
+      invalidate();
+      toast.success("Demo data restored");
+    } catch { toast.error("Couldn't restore demo data. No real bookings were changed."); }
+    setResetting(false);
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
@@ -141,7 +155,7 @@ function SettingsPage() {
         <div className="mb-3">
           <label htmlFor="availability-time-zone" className="block text-xs text-muted-foreground">Your time zone</label>
           <select id="availability-time-zone" className={field + " mt-1"} value={availabilityTz} disabled>
-            <option value={availabilityTz}>{availabilityTz === "Asia/Karachi" ? "Islamabad (UTC+05:00)" : new Intl.DateTimeFormat("en-US", { timeZone: availabilityTz, timeZoneName: "long" }).formatToParts(new Date()).find((part) => part.type === "timeZoneName")?.value ?? "Your time zone"}</option>
+            <option value={availabilityTz}>{availabilityTz === "Asia/Karachi" ? "Islamabad" : new Intl.DateTimeFormat("en-US", { timeZone: availabilityTz, timeZoneName: "long" }).formatToParts(new Date()).find((part) => part.type === "timeZoneName")?.value ?? "Your time zone"}</option>
           </select>
         </div>
         <div className="divide-y divide-border">
@@ -221,6 +235,7 @@ function SettingsPage() {
               <button key={h} className={btn + " h-9"} disabled={!demo} onClick={() => setClock(offset + h)}>+{h}h</button>
             ))}
             <button className={btn + " h-9"} disabled={!demo || offset === 0} onClick={() => setClock(0)}>Reset</button>
+            {demo && <button className={btn + " h-9"} disabled={resetting} onClick={restoreDemo}>{resetting ? "Restoring…" : "Reset demo data"}</button>}
           </div>
           {demo && (
             <div className="mt-3 rounded-[10px] border border-border bg-muted px-3 py-2 text-sm" role="status">

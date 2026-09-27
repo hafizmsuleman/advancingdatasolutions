@@ -49,13 +49,13 @@ const SERVICE_PILLARS = [
   },
   {
     icon: Sparkles,
-    title: "AI & GenAI: RAG, vector search, LLM data prep",
+    title: "AI & GenAI",
     description:
       "Retrieval-augmented generation, vector search and LLM data preparation on Bedrock, Azure OpenAI and Snowflake Cortex — AI built on clean, governed data.",
   },
   {
     icon: Globe,
-    title: "Web & applications: ASP.NET Core, AI-enabled APIs",
+    title: "Web & applications",
     description:
       "ASP.NET Core web apps, AI-enabled APIs and microservices. Secure, well-tested systems that fit the way your business runs.",
   },

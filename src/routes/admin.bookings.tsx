@@ -6,6 +6,9 @@ import { blockSender, useAdminBookings, useInvalidateAdmin } from "@/lib/admin-d
 import { supabase } from "@/integrations/supabase/client";
 import { browserTimeZone, fmtIn, dayKeyIn, tzLabel, type AdminBooking, type BookingStatus } from "@/lib/admin-sample";
 import { BookingDrawer } from "@/components/booking-drawer";
+import { cancelAdminBooking } from "@/lib/admin-booking.functions";
+import { cancellationText } from "@/lib/admin-sample";
+import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/admin/bookings")({
   head: () => ({
@@ -29,6 +32,7 @@ const STATUS: Record<BookingStatus, { label: string; tone: "success" | "info" | 
 function Bookings() {
   const { data: rows = [] } = useAdminBookings();
   const invalidate = useInvalidateAdmin();
+  const cancelFn = useServerFn(cancelAdminBooking);
   const [status, setStatus] = useState("all");
   const [area, setArea] = useState("all");
   const [date, setDate] = useState("");
@@ -40,8 +44,13 @@ function Bookings() {
     .filter((b) => !date || dayKeyIn(b.start, browserTimeZone()) === date)
     .sort((a, b) => a.start.localeCompare(b.start));
 
-  const set = (id: string, s: BookingStatus, msg: string) => {
-    const patch = s === "cancelled" ? { status: s, cancelled_at: new Date().toISOString(), cancel_reason: "Cancelled by our team" } : { status: s };
+  const set = async (id: string, s: BookingStatus, msg: string) => {
+    if (s === "cancelled") {
+      try { await cancelFn({ data: { id } }); toast.success(msg); invalidate(); }
+      catch { toast.error("Couldn't cancel the booking or queue its notice"); }
+      return;
+    }
+    const patch = { status: s };
     if (s !== "completed") void supabase.from("messages").update({ status: "cancelled" }).eq("booking_id", id).eq("status", "scheduled")
       .in("type", ["nda_reminder", "reminder_24h", "reminder_1h"]).gt("scheduled_utc", new Date().toISOString());
     supabase.from("bookings").update(patch).eq("id", id).then(({ error }) => {
@@ -77,8 +86,9 @@ function Bookings() {
           <button className={btn + " h-9"} onClick={() => { setStatus("all"); setArea("all"); setDate(""); }}>Clear</button>
         )}
       </div>
-      <Panel className="overflow-x-auto">
-        <table className="w-full min-w-[1000px]">
+      <Panel className="overflow-x-auto lg:overflow-x-visible">
+        <table className="w-full min-w-[800px] table-fixed lg:min-w-0">
+          <colgroup><col className="w-[18%]"/><col className="w-[6%]"/><col className="w-[13%]"/><col className="w-[17%]"/><col className="w-[7%]"/><col className="w-[17%]"/><col className="w-[22%]"/></colgroup>
           <thead className="border-b border-border bg-muted/50">
             <tr>
               <th className={th}>Client</th><th className={th}>Area</th><th className={th}>Your time</th>
@@ -92,20 +102,19 @@ function Bookings() {
             {shown.map((b) => (
               <tr key={b.id} className="hover:bg-muted/30">
                 <td className={td}>
-                  <button onClick={() => setOpen(b)} className="text-left font-medium text-primary hover:underline">{b.company}</button>
-                  <div className="text-xs text-muted-foreground">{b.name} · {b.code}</div>
+                  <button onClick={() => setOpen(b)} className="break-words text-left font-medium text-primary hover:underline">{b.company} – {b.name}</button>
                 </td>
                 <td className={td}>{b.area}</td>
-                <td className={td + " tabular-nums"}>{fmtIn(b.start, browserTimeZone())}</td>
-                <td className={td + " tabular-nums"}>{fmtIn(b.start, b.clientTz)}<div className="text-xs text-muted-foreground">Client's time ({tzLabel(b.clientTz)})</div></td>
+                <td className={td + " !whitespace-normal tabular-nums"}>{fmtIn(b.start, browserTimeZone())}</td>
+                <td className={td + " !whitespace-normal tabular-nums"}>{fmtIn(b.start, b.clientTz)}<div className="break-words text-xs text-muted-foreground">({tzLabel(b.clientTz)})</div></td>
                 <td className={td + " tabular-nums"}>{b.duration} min</td>
-                <td className={td}><Pill tone={STATUS[b.status].tone}>{STATUS[b.status].label}</Pill>{b.calendarFailed && <div className="mt-1"><Pill tone="warning">Calendar not synced</Pill></div>}</td>
+                <td className={td}><Pill tone={STATUS[b.status].tone}>{STATUS[b.status].label}</Pill>{b.calendarFailed && <div className="mt-1"><Pill tone="warning">Calendar not synced</Pill></div>}{b.status === "cancelled" && <div className="mt-1 text-xs text-muted-foreground">{cancellationText(b)}</div>}</td>
                 <td className={td}>
-                  <div className="flex justify-end gap-1.5">
+                  <div className="flex flex-wrap justify-end gap-1 max-lg:min-w-[142px]">
                   {b.status === "confirmed" && (
                     <>
-                      <button className={btn} onClick={() => set(b.id, "completed", `${b.company} marked completed`)}>Mark completed</button>
-                      <button className={btn} onClick={() => set(b.id, "no_show", `${b.company} marked no-show`)}>Mark no-show</button>
+                      <button className={btn} onClick={() => set(b.id, "completed", `${b.company} marked completed`)}>Complete</button>
+                      <button className={btn} onClick={() => set(b.id, "no_show", `${b.company} marked no-show`)}>No-show</button>
                       <button className={btn + " text-destructive"} onClick={() => confirm(`Cancel ${b.company}'s consultation?`) && set(b.id, "cancelled", "Booking cancelled")}>Cancel</button>
                     </>
                   )}

@@ -2,6 +2,10 @@
 @source "../src";
 @import "tw-animate-css";
 
+/* Preserve horizontal date navigation without a visible browser scrollbar. */
+.date-tabs { scrollbar-width: none; }
+.date-tabs::-webkit-scrollbar { display: none; }
+
 @custom-variant dark (&:is(.dark *));
 
 /*

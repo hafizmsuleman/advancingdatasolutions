@@ -55,6 +55,7 @@ function Outbox() {
               <div className="flex shrink-0 flex-col items-end gap-1.5">
                  <span className="text-xs tabular-nums text-muted-foreground">{fmtIn(e.at, browserTimeZone())}</span>
                 <Pill tone={s.tone} icon={s.icon}>{s.label}</Pill>
+                {e.cancellationNote && <span className="max-w-[145px] text-right text-xs text-muted-foreground">Not sent – booking cancelled</span>}
                 {e.status === "failed" && (
                   <button className={btn} onClick={() => retry(e.id)}><RotateCw className="h-3 w-3" aria-hidden />Retry</button>
                 )}
@@ -74,6 +75,7 @@ function Outbox() {
               <div className="space-y-3 px-4 pb-6">
                 <div className="flex gap-2 text-xs text-muted-foreground">
                   <Pill tone={STATUS[open.status].tone} icon={STATUS[open.status].icon}>{STATUS[open.status].label}</Pill>
+                  {open.cancellationNote && <span>Not sent – booking cancelled</span>}
                   <span>From notify.advancingdatasolutions.com · Reply-to contact@advancingdatasolutions.com</span>
                 </div>
                 <pre className="whitespace-pre-wrap rounded-lg border border-border bg-background p-4 font-sans text-sm leading-relaxed text-foreground">{open.body}</pre>
