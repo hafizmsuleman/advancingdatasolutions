@@ -20,3 +20,4 @@
 - Team availability zone = settings.team_timezone (editable in Settings); getBusy/loadSchedule return it and generateSlots takes teamTz; admin display times use it via setAdminTimeZone — why: one source of truth for availability and admin times.
 - Admin "Show: Real/Demo/All" is a shared store in admin-data (useDataView, default Real; Demo/All only with demo mode) applied to every admin query incl. stats — why: consistent filtering.
 - Demo data generation: `generate_demo_data()` (admin + demo_mode, is_demo rows only, refuses if already generated); reset_demo_data removes all is_demo rows.
+- Slot pickers render slots only after getBusy resolves and use its server-aligned clock (useBusy: serverNow skew, +30s stricter) — why: browser must never offer a slot the server re-check rejects.
