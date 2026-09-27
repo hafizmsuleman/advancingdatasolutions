@@ -54,7 +54,7 @@ function Leads() {
   };
   return (
     <div className="mx-auto max-w-6xl">
-      <PageIntro title="Leads">Only verified leads receive nudges (24h and 48h, max 2), then go cold at 72h.</PageIntro>
+      <PageIntro title="Leads">Verified and pasted leads receive nudges (24h and 48h, max 2), then go cold at 72h.</PageIntro>
       <Panel className="overflow-x-auto">
         <table className="w-full min-w-[820px]">
           <thead className="border-b border-border bg-muted/50">
