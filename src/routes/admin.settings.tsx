@@ -6,7 +6,7 @@ import { runAutomationsNow } from "@/lib/automations.functions";
 import { resetDemoData, generateDemoData } from "@/lib/demo-reset.functions";
 import { TimeZoneSelect } from "@/components/time-zone-select";
 import { setAdminTimeZone } from "@/lib/admin-sample";
-import { useInvalidateAdmin } from "@/lib/admin-data";
+import { useInvalidateAdmin, useDataView, setDataView, type DataView } from "@/lib/admin-data";
 import { BUDGET_LABEL, BUDGET_TO_DB } from "@/lib/enums";
 import { toast } from "sonner";
 import { X } from "lucide-react";
@@ -55,7 +55,8 @@ function SettingsPage() {
   const [link, setLink] = useState("");
   const [blocked, setBlocked] = useState(["mailinator.com", "quickmail-temp.io", "spam@example.com"]);
   const [newBlock, setNewBlock] = useState("");
-  const [demo, setDemo] = useState(false);
+  const view = useDataView();
+  const demo = view !== "real";
   const [offset, setOffset] = useState(0);
   const [availabilityTz, setAvailabilityTz] = useState("Asia/Karachi");
   const invalidate = useInvalidateAdmin();
@@ -81,7 +82,7 @@ function SettingsPage() {
         setN({ buffer: st.buffer_min, cap: st.daily_cap, notice: st.min_notice_hours, flag: st.attendance_flag_hours, release: st.attendance_release_hours });
         setThreshold(BUDGET_LABEL[st.budget_threshold]);
         setLink(st.fallback_meeting_link ?? "");
-        setDemo(st.demo_mode);
+        if (st.demo_mode !== (view !== "real")) await supabase.from("settings").update({ demo_mode: view !== "real" }).eq("id", 1);
         setOffset(Math.round(st.virtual_clock_offset_min / 60));
         setAvailabilityTz(st.team_timezone);
       }
@@ -115,10 +116,10 @@ function SettingsPage() {
     const { error } = await supabase.from("blocked_senders").delete().eq("value", v);
     if (error) toast.error("Couldn't remove"); else setBlocked((b) => b.filter((x) => x !== v));
   }
-  async function setDemoMode(on: boolean) {
-    const { error } = await supabase.from("settings").update({ demo_mode: on }).eq("id", 1);
-    if (error) { toast.error("Couldn't change demo mode"); return; }
-    setDemo(on); invalidate();
+  async function changeView(v: DataView) {
+    const { error } = await supabase.from("settings").update({ demo_mode: v !== "real" }).eq("id", 1);
+    if (error) { toast.error("Couldn't change the data view"); return; }
+    setDataView(v); invalidate();
   }
   async function runNow() {
     setRunning(true);
@@ -239,13 +240,15 @@ function SettingsPage() {
         </div>
       </Section>
 
-      <Section title="Demo mode" desc="Shows sample bookings and leads. Demo emails go only to the admin; no calendar events are created.">
-        <label className="flex items-center gap-2 text-sm">
-          <Switch checked={demo} onCheckedChange={setDemoMode} aria-label="Demo mode" />
-          {demo ? "Demo mode is on" : "Demo mode is off"}
-        </label>
+      <Section title="Data view" desc="Which data admin pages show. Demo bookings never block public times, and demo emails go only to the admin.">
+        <label htmlFor="data-view" className="sr-only">Data view</label>
+        <select id="data-view" className={field + " w-full max-w-xs"} value={view} onChange={(e) => changeView(e.target.value as DataView)}>
+          <option value="all">All data</option>
+          <option value="real">Real data only</option>
+          <option value="demo">Demo data only</option>
+        </select>
         <div className="mt-4">
-          <div className="text-xs text-muted-foreground">Simulate time (demo bookings only)</div>
+          <div className="text-xs text-muted-foreground">Simulate time (demo bookings only{demo ? "" : " — choose All data or Demo data only"})</div>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
             {[1, 12, 24].map((h) => (
               <button key={h} className={btn + " h-9"} disabled={!demo} onClick={() => setClock(offset + h)}>+{h}h</button>

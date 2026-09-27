@@ -50,11 +50,12 @@ async function loadBusy(db: Awaited<ReturnType<typeof admin>>, excludeToken?: st
 
 /** Busy times plus the team's availability time zone (Settings → Your time zone). */
 async function loadSchedule(db: Awaited<ReturnType<typeof admin>>, excludeToken?: string): Promise<{ busy: Busy[]; teamTz: string }> {
-  const { data: s } = await db.from("settings").select("demo_mode, team_timezone").eq("id", 1).single();
-  let q = db.from("bookings").select("start_utc,end_utc,manage_token,is_demo,google_event_id")
+  const { data: s } = await db.from("settings").select("team_timezone").eq("id", 1).single();
+  // Demo bookings never block public times.
+  const q = db.from("bookings").select("start_utc,end_utc,manage_token,is_demo,google_event_id")
     .in("status", ["confirmed", "attendance_confirmed"])
-    .gte("end_utc", new Date(Date.now() - 86400_000).toISOString());
-  if (!s?.demo_mode) q = q.eq("is_demo", false);
+    .gte("end_utc", new Date(Date.now() - 86400_000).toISOString())
+    .eq("is_demo", false);
   const [{ data }, cal] = await Promise.all([q, calendarBusy()]);
   const own = (data ?? []).find((b) => b.manage_token === excludeToken)?.google_event_id;
   const bookings: Busy[] = (data ?? []).filter((b) => b.manage_token !== excludeToken)
