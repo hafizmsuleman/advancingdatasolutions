@@ -25,6 +25,7 @@ export const Route = createFileRoute("/book/")({
       { name: "description", content: DESC },
       { property: "og:title", content: TITLE },
       { property: "og:description", content: DESC },
+      { property: "og:url", content: "https://advancingdatasolutions.lovable.app/book" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
