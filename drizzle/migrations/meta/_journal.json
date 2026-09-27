@@ -43,6 +43,13 @@
       "when": 1790468267703,
       "tag": "0005_reset_demo_data",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790470064630,
+      "tag": "0006_generate_demo_data",
+      "breakpoints": true
     }
   ]
 }

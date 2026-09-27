@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Send, Ban, BadgeCheck } from "lucide-react";
-import { Panel, Pill, PageIntro, btn, th, td } from "@/components/admin-ui";
+import { Panel, Pill, PageIntro, ViewFilter, DemoTag, btn, th, td } from "@/components/admin-ui";
 import { browserTimeZone, fmtIn, type LeadStatus } from "@/lib/admin-sample";
-import { useAdminLeads, useInvalidateAdmin } from "@/lib/admin-data";
+import { useAdminLeads, useDataView, useInvalidateAdmin } from "@/lib/admin-data";
 import { blockSender, unblockSender } from "@/lib/admin-data";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -29,6 +29,7 @@ const STATUS: Record<LeadStatus, { label: string; tone: "success" | "info" | "wa
 
 function Leads() {
   const { data: rows = [] } = useAdminLeads();
+  const view = useDataView();
   const invalidate = useInvalidateAdmin();
   const resend = async (l: (typeof rows)[number]) => {
     const link = `${window.location.origin}/book?t=${l.bookingToken}`;
@@ -49,6 +50,7 @@ function Leads() {
   };
   return (
     <div className="mx-auto max-w-6xl">
+      <ViewFilter />
       <PageIntro title="Leads">Only verified leads receive nudges (24h and 48h, max 2), then go cold at 72h.</PageIntro>
       <Panel className="overflow-x-auto">
         <table className="w-full min-w-[820px]">
@@ -59,10 +61,11 @@ function Leads() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
+            {rows.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-sm text-muted-foreground">No leads to show.</td></tr>}
             {rows.map((l) => (
               <tr key={l.id} className="hover:bg-muted/30">
                 <td className={td}>
-                  <div className="font-medium">{l.name} <span className="font-normal text-muted-foreground">· {l.company}</span></div>
+                  <div className="font-medium">{l.name} <span className="font-normal text-muted-foreground">· {l.company}</span><DemoTag show={view === "all" && l.isDemo} /></div>
                   <div className="text-xs text-muted-foreground">{l.email}</div>
                 </td>
                 <td className={td}><Pill tone={STATUS[l.status].tone}>{STATUS[l.status].label}</Pill></td>

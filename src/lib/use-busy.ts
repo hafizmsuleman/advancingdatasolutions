@@ -16,5 +16,5 @@ export function useBusy(excludeToken?: string) {
     refetchOnMount: "always",
     refetchInterval: 60_000,
   });
-  return { busy: q.data ?? EMPTY, loading: q.isLoading };
+  return { busy: q.data?.busy ?? EMPTY, teamTz: q.data?.teamTz, loading: q.isLoading };
 }

@@ -3,8 +3,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { RotateCw, Clock, CheckCircle2, XCircle, Ban } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { Panel, Pill, PageIntro, btn } from "@/components/admin-ui";
-import { useAdminOutbox, useInvalidateAdmin } from "@/lib/admin-data";
+import { Panel, Pill, PageIntro, ViewFilter, DemoTag, btn } from "@/components/admin-ui";
+import { useAdminOutbox, useDataView, useInvalidateAdmin } from "@/lib/admin-data";
 import { supabase } from "@/integrations/supabase/client";
 import { browserTimeZone, fmtIn, type EmailStatus, type OutboxEmail } from "@/lib/admin-sample";
 
@@ -28,6 +28,7 @@ const STATUS: Record<EmailStatus, { label: string; tone: "success" | "info" | "e
 
 function Outbox() {
   const { data: rows = [] } = useAdminOutbox();
+  const view = useDataView();
   const invalidate = useInvalidateAdmin();
   const [open, setOpen] = useState<OutboxEmail | null>(null);
   const sorted = [...rows].sort((a, b) => b.at.localeCompare(a.at));
@@ -38,8 +39,10 @@ function Outbox() {
   };
   return (
     <div className="mx-auto max-w-4xl">
+      <ViewFilter />
       <PageIntro title="Outbox">Times shown in your time.</PageIntro>
       <Panel className="divide-y divide-border">
+        {sorted.length === 0 && <p className="p-8 text-center text-sm text-muted-foreground">No emails yet.</p>}
         {sorted.map((e) => {
           const s = STATUS[e.status];
           return (
@@ -48,6 +51,7 @@ function Outbox() {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="truncate text-sm font-medium text-foreground">{e.subject}</span>
                   <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">{e.type}</span>
+                  <DemoTag show={view === "all" && e.isDemo} />
                 </div>
                 <div className="text-xs text-muted-foreground">To {e.to}</div>
                 <p className="mt-0.5 truncate text-sm text-muted-foreground">{e.body.split("\n").find((l) => l.trim() && !/^Hi /.test(l)) ?? e.body}</p>

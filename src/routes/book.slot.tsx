@@ -8,6 +8,7 @@ import { loadDraft, saveDraft, type BookingDraft } from "@/lib/booking-draft";
 import { dateKey, generateSlots, partsIn, visitorDays, type Slot } from "@/lib/slots";
 import { useBusy } from "@/lib/use-busy";
 import { friendlyTimeZone } from "@/lib/time-zone-label";
+import { TimeZoneSelect } from "@/components/time-zone-select";
 import { requestBooking } from "@/lib/booking.functions";
 
 const TITLE = "Choose a time — Advancing Data Solutions";
@@ -29,12 +30,6 @@ export const Route = createFileRoute("/book/slot")({
 
 const STEPS = [{ label: "About you" }, { label: "Your project" }, { label: "Session" }, { label: "Time" }, { label: "Verify" }];
 
-function allZones(current: string): string[] {
-  const fn = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf;
-  const list = fn ? fn("timeZone") : [];
-  return list.includes(current) ? list : [current, ...list];
-}
-
 function SlotPage() {
   const navigate = useNavigate();
   const [draft, setDraft] = useState<Partial<BookingDraft> | null | undefined>(undefined);
@@ -44,7 +39,7 @@ function SlotPage() {
   const tabsRef = useRef<HTMLDivElement>(null);
   const [day, setDay] = useState<string>("");
   const [selected, setSelected] = useState<number | null>(null);
-  const { busy } = useBusy();
+  const { busy, teamTz } = useBusy();
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState("");
 
@@ -58,8 +53,8 @@ function SlotPage() {
 
   const duration = draft?.duration ?? 30;
   const slots = useMemo(
-    () => (now ? generateSlots({ now, duration, visitorTz: tz, busy }) : []),
-    [now, duration, tz, busy],
+    () => (now ? generateSlots({ now, duration, visitorTz: tz, busy, teamTz }) : []),
+    [now, duration, tz, busy, teamTz],
   );
   const days = useMemo(() => (now ? visitorDays(now, tz) : []), [now, tz]);
   const byDay = useMemo(() => {
@@ -171,9 +166,7 @@ function SlotPage() {
           {editingTz && (
             <div className="mt-3">
               <label htmlFor="tz" className="mb-1 block text-sm font-medium">Your time zone</label>
-              <select id="tz" value={tz} onChange={(e) => changeTz(e.target.value)} className="min-h-11 w-full rounded-md border border-input bg-card px-3 text-sm">
-                {allZones(tz).map((z) => <option key={z} value={z}>{friendlyTimeZone(z)}</option>)}
-              </select>
+              <TimeZoneSelect id="tz" value={tz} onChange={changeTz} />
             </div>
           )}
 

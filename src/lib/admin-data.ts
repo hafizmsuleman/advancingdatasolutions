@@ -2,15 +2,42 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AREA_LABEL, BUDGET_LABEL, NEED_LABEL, PLATFORM_LABEL } from "./enums";
-import { tzLabel, type AdminBooking, type AdminLead, type OutboxEmail, type BookingStatus, type LeadStatus } from "./admin-sample";
+import { useSyncExternalStore } from "react";
+import { setAdminTimeZone, tzLabel, type AdminBooking, type AdminLead, type OutboxEmail, type BookingStatus, type LeadStatus } from "./admin-sample";
 
 async function demoMode() {
-  const { data } = await supabase.from("settings").select("demo_mode").eq("id", 1).single();
+  const { data } = await supabase.from("settings").select("demo_mode, team_timezone").eq("id", 1).single();
+  if (data?.team_timezone) setAdminTimeZone(data.team_timezone);
   return !!data?.demo_mode;
 }
 
 export function useDemoMode() {
   return useQuery({ queryKey: ["admin", "demo"], queryFn: demoMode });
+}
+
+// ---- Show: Real / Demo / All (shared across admin pages; default Real) ----
+export type DataView = "real" | "demo" | "all";
+let view: DataView = "real";
+const subs = new Set<() => void>();
+export function setDataView(v: DataView) {
+  view = v;
+  try { sessionStorage.setItem("ads-admin-view", v); } catch { /* ignore */ }
+  subs.forEach((f) => f());
+}
+function readView(): DataView {
+  try { const v = sessionStorage.getItem("ads-admin-view"); if (v === "demo" || v === "all") view = v; } catch { /* ignore */ }
+  return view;
+}
+if (typeof window !== "undefined") readView();
+export function useDataView(): DataView {
+  const v = useSyncExternalStore((f) => { subs.add(f); return () => subs.delete(f); }, () => view, () => "real" as DataView);
+  const { data: demo } = useDemoMode();
+  // Demo/All only while demo mode is on; otherwise always Real.
+  return demo ? v : "real";
+}
+/** Apply the view to a query on a table with is_demo. */
+function scope<Q>(q: Q, v: DataView): Q {
+  return v === "all" ? q : (q as unknown as { eq: (c: string, val: boolean) => Q }).eq("is_demo", v === "demo");
 }
 
 export function useInvalidateAdmin() {
@@ -21,14 +48,15 @@ export function useInvalidateAdmin() {
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export function useAdminBookings() {
+  const v = useDataView();
   return useQuery({
-    queryKey: ["admin", "bookings"],
+    queryKey: ["admin", "bookings", v],
     queryFn: async (): Promise<AdminBooking[]> => {
-      const demo = await demoMode();
+      await demoMode();
       let q = supabase.from("bookings")
         .select("*, leads(full_name,company,role,project_area,platform,need,timeline,budget_range,notes,email_verified_at), ndas(id)")
         .neq("status", "pending_verification").order("start_utc");
-      if (!demo) q = q.eq("is_demo", false);
+      q = scope(q, v);
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []).filter((b) => b.cancel_reason !== "replaced").map((b) => {
@@ -49,7 +77,7 @@ export function useAdminBookings() {
           attendance: b.status === "attendance_confirmed" || !!b.attendance_confirmed_at,
           calendarFailed: !b.is_demo && b.calendar_sync_status === "failed" && ["confirmed", "attendance_confirmed"].includes(b.status),
           status, isNew: status === "confirmed" && Date.now() - Date.parse(b.created_at) < 36 * 3600_000,
-          cancelledAt: b.cancelled_at, cancelReason: b.cancel_reason,
+          cancelledAt: b.cancelled_at, cancelReason: b.cancel_reason, isDemo: b.is_demo,
         };
       });
     },
@@ -57,19 +85,19 @@ export function useAdminBookings() {
 }
 
 export function useAdminStats() {
+  const v = useDataView();
   return useQuery({
-    queryKey: ["admin", "stats"],
+    queryKey: ["admin", "stats", v],
     queryFn: async () => {
-      const demo = await demoMode();
       const week = new Date(Date.now() - 7 * 86400_000).toISOString();
       let b = supabase.from("bookings").select("id", { count: "exact", head: true })
         .in("status", ["confirmed", "attendance_confirmed", "completed"]).gte("created_at", week);
       // Queued emails count once due; real sending will flip them to "sent".
       let m = supabase.from("messages").select("minutes_saved").in("status", ["sent", "scheduled"])
         .gte("scheduled_utc", week).lte("scheduled_utc", new Date().toISOString());
-      if (!demo) { b = b.eq("is_demo", false); m = m.eq("is_demo", false); }
+      b = scope(b, v); m = scope(m, v);
       const n = supabase.from("ndas").select("id, bookings!inner(is_demo)", { count: "exact", head: true }).gte("signed_at", week);
-      const [{ count: bookings }, { data: msgs }, { count: ndas }] = await Promise.all([b, m, demo ? n : n.eq("bookings.is_demo", false)]);
+      const [{ count: bookings }, { data: msgs }, { count: ndas }] = await Promise.all([b, m, v === "all" ? n : n.eq("bookings.is_demo", v === "demo")]);
       const minutes = (msgs ?? []).reduce((s, x) => s + x.minutes_saved, 0);
       return { bookingsThisWeek: bookings ?? 0, ndasSigned: ndas ?? 0, emailsAutomated: msgs?.length ?? 0, hoursSaved: minutes / 60 };
     },
@@ -77,12 +105,12 @@ export function useAdminStats() {
 }
 
 export function useAdminLeads() {
+  const v = useDataView();
   return useQuery({
-    queryKey: ["admin", "leads"],
+    queryKey: ["admin", "leads", v],
     queryFn: async (): Promise<(AdminLead & { bookingToken: string })[]> => {
-      const demo = await demoMode();
-      let q = supabase.from("leads").select("*").order("created_at", { ascending: false });
-      if (!demo) q = q.eq("is_demo", false);
+      await demoMode();
+      const q = scope(supabase.from("leads").select("*").order("created_at", { ascending: false }), v);
       const [{ data, error }, { data: blocked }] = await Promise.all([q, supabase.from("blocked_senders").select("value")]);
       if (error) throw error;
       const bl = new Set((blocked ?? []).map((b) => b.value.toLowerCase()));
@@ -95,7 +123,7 @@ export function useAdminLeads() {
           id: l.id, name: l.full_name ?? "—", email: l.email ?? "", company: l.company ?? "—", country: l.client_tz ? tzLabel(l.client_tz) : "",
           status, source: src[l.source] ?? "Form", area: (AREA_LABEL[l.project_area ?? ""] ?? "Data") as AdminLead["area"],
           verified: !!l.email_verified_at && Date.now() - Date.parse(l.email_verified_at) < 30 * 86400_000,
-          nudges: l.nudge_count, lastNudge: l.last_nudged_at, createdAt: l.created_at, bookingToken: l.booking_token,
+          nudges: l.nudge_count, lastNudge: l.last_nudged_at, createdAt: l.created_at, bookingToken: l.booking_token, isDemo: l.is_demo,
         };
       });
     },
@@ -103,15 +131,15 @@ export function useAdminLeads() {
 }
 
 export function useAdminOutbox() {
+  const v = useDataView();
   return useQuery({
-    queryKey: ["admin", "outbox"],
+    queryKey: ["admin", "outbox", v],
     queryFn: async (): Promise<OutboxEmail[]> => {
-      const demo = await demoMode();
-      let q = supabase.from("messages").select("*, bookings(status,cancel_reason)").order("scheduled_utc", { ascending: false }).limit(200);
-      if (!demo) q = q.eq("is_demo", false);
+      await demoMode();
+      const q = scope(supabase.from("messages").select("*, bookings(status,cancel_reason)").order("scheduled_utc", { ascending: false }).limit(200), v);
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []).map((m) => ({ id: m.id, to: m.to_email, type: m.type, subject: m.subject.replace(/\s*\(ADS-[A-Z0-9]+\)/g, ""), body: m.body.replace(/^Reference: ADS-[A-Z0-9]+\n?/gm, "").replace(/\sADS-[A-Z0-9]+\b/g, ""), at: m.sent_at ?? m.scheduled_utc, status: m.status,
+      return (data ?? []).map((m) => ({ id: m.id, to: m.to_email, type: m.type, subject: m.subject.replace(/\s*\(ADS-[A-Z0-9]+\)/g, ""), body: m.body.replace(/^Reference: ADS-[A-Z0-9]+\n?/gm, "").replace(/\sADS-[A-Z0-9]+\b/g, ""), at: m.sent_at ?? m.scheduled_utc, status: m.status, isDemo: m.is_demo,
         cancellationNote: m.status === "cancelled" && ["nda_reminder", "reminder_24h", "reminder_1h"].includes(m.type) && (m.bookings?.status === "cancelled" || m.bookings?.status === "rescheduled") && m.bookings?.cancel_reason !== "slot_taken" }));
     },
   });

@@ -537,6 +537,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      generate_demo_data: { Args: never; Returns: number }
       get_lead_prefill: {
         Args: { p_booking_token: string }
         Returns: {

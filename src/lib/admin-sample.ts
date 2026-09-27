@@ -1,8 +1,11 @@
 // Sample data for the admin UI (Phase 1). Replaced by Lovable Cloud data in Phase 2.
 export const TEAM_TZ = "Asia/Karachi";
 
+let adminTz: string | null = null;
+/** Admin display zone = Settings → "Your time zone" once loaded; browser zone until then. */
+export function setAdminTimeZone(tz: string | null) { adminTz = tz; }
 export function browserTimeZone() {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  return adminTz || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 }
 
 export type Area = "Data" | "AI" | "Web";
@@ -32,6 +35,7 @@ export type AdminBooking = {
   attendance: boolean;
   status: BookingStatus;
   isNew: boolean;
+  isDemo?: boolean;
   cancelledAt?: string | null;
   cancelReason?: string | null;
 };
@@ -107,7 +111,7 @@ export type LeadStatus = "new" | "link_sent" | "nudged" | "booked" | "cold" | "b
 export type AdminLead = {
   id: string; name: string; email: string; company: string; country: string;
   status: LeadStatus; source: "Form" | "LinkedIn" | "Email" | "WhatsApp";
-  area: Area; verified: boolean; nudges: number; lastNudge: string | null; createdAt: string;
+  area: Area; verified: boolean; nudges: number; lastNudge: string | null; createdAt: string; isDemo?: boolean;
 };
 
 export const SAMPLE_LEADS: AdminLead[] = [
@@ -123,7 +127,7 @@ export const SAMPLE_LEADS: AdminLead[] = [
 
 export type EmailStatus = "scheduled" | "sent" | "failed" | "cancelled";
 export type OutboxEmail = {
-  id: string; to: string; type: string; subject: string; body: string; at: string; status: EmailStatus; cancellationNote?: boolean;
+  id: string; to: string; type: string; subject: string; body: string; at: string; status: EmailStatus; cancellationNote?: boolean; isDemo?: boolean;
 };
 
 export const SAMPLE_OUTBOX: OutboxEmail[] = [
@@ -170,7 +174,7 @@ export function dayKeyIn(iso: string, tz: string) {
 }
 
 export function tzLabel(tz: string) {
-  if (tz === TEAM_TZ) return "Pakistan – Karachi";
+  if (tz === TEAM_TZ) return "Pakistan – Islamabad/Karachi";
   return (tz.split("/").pop() ?? tz).replace(/_/g, " ");
 }
 

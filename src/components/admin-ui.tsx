@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { CheckCircle2, Clock, XCircle, Ban, CircleDot, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { setDataView, useDataView, useDemoMode, type DataView } from "@/lib/admin-data";
 
 type Tone = "success" | "warning" | "error" | "neutral" | "info";
 
@@ -54,4 +55,35 @@ export function DemoNote() {
       Sample data. Actions update this page only until the backend is connected.
     </p>
   );
+}
+
+/** "Show: Real / Demo / All" — shared across Dashboard, Bookings, Leads and Outbox. */
+export function ViewFilter() {
+  const v = useDataView();
+  const { data: demo } = useDemoMode();
+  const opts: { id: DataView; label: string }[] = [{ id: "real", label: "Real" }, { id: "demo", label: "Demo" }, { id: "all", label: "All" }];
+  return (
+    <div className="mb-4 flex items-center gap-2 text-xs">
+      <span className="text-muted-foreground" id="view-filter-label">Show:</span>
+      <div role="radiogroup" aria-labelledby="view-filter-label" className="inline-flex rounded-lg border border-border bg-card p-0.5">
+        {opts.map((o) => {
+          const disabled = o.id !== "real" && !demo;
+          return (
+            <button key={o.id} type="button" role="radio" aria-checked={v === o.id} disabled={disabled}
+              title={disabled ? "Turn on Demo mode in Settings" : undefined} onClick={() => setDataView(o.id)}
+              className={cn("h-7 rounded-md px-3 font-medium transition-colors disabled:opacity-40",
+                v === o.id ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted")}>
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Small "Demo" label for demo items when showing All. */
+export function DemoTag({ show }: { show?: boolean | undefined }) {
+  if (!show) return null;
+  return <span className="ml-1.5 inline-flex rounded border border-warning/30 bg-warning/10 px-1.5 py-px align-middle text-[10px] font-semibold uppercase tracking-wide text-warning">Demo</span>;
 }

@@ -65,16 +65,17 @@ export function sampleBookings(now: number): Busy[] {
 
 export type Slot = { start: number; end: number };
 
-export function generateSlots(opts: { now: number; duration: 30 | 60; visitorTz: string; busy: Busy[] }) {
+export function generateSlots(opts: { now: number; duration: 30 | 60; visitorTz: string; busy: Busy[]; teamTz?: string | undefined }) {
   const { now, duration, visitorTz, busy } = opts;
+  const team = opts.teamTz || TEAM_TZ;
   const slots: Slot[] = [];
   const earliest = now + NOTICE_MS;
   const horizonEnd = now + HORIZON_DAYS * 86400_000;
   for (let i = 0; i <= HORIZON_DAYS; i++) {
-    const p = partsIn(now + i * 86400_000, TEAM_TZ);
+    const p = partsIn(now + i * 86400_000, team);
     if (p.wd === 0 || p.wd === 6) continue;
-    const dayStart = zonedToUtc(p.y, p.m, p.d, AVAIL_START_MIN, TEAM_TZ);
-    const dayEnd = zonedToUtc(p.y, p.m, p.d, AVAIL_END_MIN, TEAM_TZ);
+    const dayStart = zonedToUtc(p.y, p.m, p.d, AVAIL_START_MIN, team);
+    const dayEnd = zonedToUtc(p.y, p.m, p.d, AVAIL_END_MIN, team);
     const dayBusy = busy.filter((b) => !b.calendar && b.start >= dayStart && b.start < dayEnd);
     if (dayBusy.length >= MAX_PER_DAY) continue;
     for (let s = dayStart; s + duration * 60000 <= dayEnd; s += STEP_MIN * 60000) {
