@@ -52,7 +52,7 @@ function SettingsPage() {
   const [days, setDays] = useState(DAYS.map((d, i) => ({ d, on: i < 5, from: "15:00", to: "24:00" })));
   const [n, setN] = useState({ buffer: 15, cap: 3, notice: 24, flag: 12, release: 6 });
   const [threshold, setThreshold] = useState("$5k–20k");
-  const [link, setLink] = useState("https://meet.google.com/xyz");
+  const [link, setLink] = useState("");
   const [blocked, setBlocked] = useState(["mailinator.com", "quickmail-temp.io", "spam@example.com"]);
   const [newBlock, setNewBlock] = useState("");
   const [demo, setDemo] = useState(false);
@@ -211,7 +211,7 @@ function SettingsPage() {
 
       <Section title="Meeting link" desc="Used for every booking until Google Calendar is connected, and as the fallback afterwards.">
         <label htmlFor="link" className="sr-only">Meeting link</label>
-        <input id="link" type="url" className={field + " w-full"} value={link} onChange={(e) => setLink(e.target.value)} />
+        <input id="link" type="url" placeholder="Backup link used only if Google Calendar fails" className={field + " w-full"} value={link} onChange={(e) => setLink(e.target.value)} />
       </Section>
 
       <Section title="Blocked emails and domains" desc="Requests from these addresses are rejected.">

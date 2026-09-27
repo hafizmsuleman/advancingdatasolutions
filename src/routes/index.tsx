@@ -16,23 +16,25 @@ import { useState } from "react";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Book a free consultation — Advancing Data Solutions" },
+      { title: "Advancing Data Solutions – Book a free consultation" },
       {
         name: "description",
         content:
-          "Talk to an engineer about your AI, data, or web project. Book a free consultation in 2 minutes — brief and NDA sorted before the call.",
+          "Talk to an engineer about your AI, data or web project. Book a free consultation in 2 minutes, with the brief and NDA sorted before the call.",
       },
       {
         property: "og:title",
-        content: "Book a free consultation — Advancing Data Solutions",
+        content: "Advancing Data Solutions – Book a free consultation",
       },
       {
         property: "og:description",
         content:
-          "Talk to an engineer about your AI, data, or web project. Book a free consultation in 2 minutes — brief and NDA sorted before the call.",
+          "Talk to an engineer about your AI, data or web project. Book a free consultation in 2 minutes, with the brief and NDA sorted before the call.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { property: "og:image", content: "https://book.advancingdatasolutions.com/og-image.png" },
+      { name: "twitter:image", content: "https://book.advancingdatasolutions.com/og-image.png" },
     ],
   }),
   component: Index,
