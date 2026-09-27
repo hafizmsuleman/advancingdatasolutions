@@ -1,8 +1,9 @@
 import * as React from 'react'
-import { Body, Container, Head, Html, Preview, Text } from '@react-email/components'
+import { Body, Container, Head, Html, Img, Preview, Section, Text } from '@react-email/components'
 import type { TemplateEntry } from './registry'
+import { LOGO } from './branded'
 
-// Deliberately short and plain: no logo, links or marketing.
+// Deliberately short: logo and code only, no links or marketing.
 interface Props { body?: string }
 
 function parse(body = '') {
@@ -19,6 +20,7 @@ const VerificationCodeEmail = ({ body }: Props) => {
       <Preview>Your verification code is {code}</Preview>
       <Body style={{ backgroundColor: '#ffffff', fontFamily: 'Inter, -apple-system, Segoe UI, Arial, sans-serif' }}>
         <Container style={{ maxWidth: '480px', margin: '0 auto', padding: '32px 20px' }}>
+          <Section style={{ padding: '0 0 24px' }}><Img src={LOGO} alt="Advancing Data Solutions" width="174" height="48" /></Section>
           <Text style={text}>Hi {name},</Text>
           <Text style={text}>Your Advancing Data Solutions verification code is:</Text>
           <Text style={codeStyle}>{code}</Text>
@@ -38,4 +40,4 @@ export const template = {
 } satisfies TemplateEntry
 
 const text = { fontSize: '16px', color: '#1C1917', lineHeight: '1.6', margin: '0 0 14px' }
-const codeStyle = { fontSize: '32px', fontWeight: 700 as const, letterSpacing: '0.3em', color: '#1B3860', margin: '8px 0 20px', fontVariantNumeric: 'tabular-nums' as const }
+const codeStyle = { fontSize: '32px', fontWeight: 700 as const, letterSpacing: '0.3em', color: '#2A5298', margin: '8px 0 20px', padding: '14px 20px', backgroundColor: '#F1F5FB', borderRadius: '10px', display: 'inline-block', fontVariantNumeric: 'tabular-nums' as const }

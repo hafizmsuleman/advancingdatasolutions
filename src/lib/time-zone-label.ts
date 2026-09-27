@@ -43,3 +43,21 @@ export function timeZoneOptions(current?: string): { value: string; label: strin
 export function clientTimeZone(tz: string) {
   return tz === "Asia/Karachi" ? "Pakistan – Islamabad/Karachi" : (tz.split("/").pop() ?? tz).replace(/_/g, " ");
 }
+
+const EMAIL_ZONES: Record<string, string> = {
+  "Asia/Karachi": "Pakistan time", "America/New_York": "Eastern Time", "America/Toronto": "Eastern Time",
+  "America/Chicago": "Central Time", "America/Denver": "Mountain Time", "America/Los_Angeles": "Pacific Time",
+  "Europe/London": "UK time", "Europe/Dublin": "Ireland time", "Europe/Amsterdam": "Central European Time",
+  "Europe/Berlin": "Central European Time", "Europe/Paris": "Central European Time", "Asia/Dubai": "UAE time",
+  "Asia/Riyadh": "Saudi time", "Asia/Qatar": "Qatar time", "Asia/Kuwait": "Kuwait time", "Asia/Singapore": "Singapore time",
+  "Australia/Sydney": "Sydney time", "Asia/Kolkata": "India time", "UTC": "UTC",
+};
+
+/** Email-friendly time, e.g. "Tuesday 29 September, 4:00 PM (Pakistan time)". */
+export function emailWhen(ms: number | string, tz: string, withDate = true): string {
+  const t = typeof ms === "string" ? Date.parse(ms) : ms;
+  const date = new Intl.DateTimeFormat("en-GB", { timeZone: tz, weekday: "long", day: "numeric", month: "long" }).format(t);
+  const time = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit", hour12: true }).format(t);
+  const zone = EMAIL_ZONES[tz] ?? friendlyTimeZone(tz);
+  return `${withDate ? `${date}, ` : ""}${time} (${zone})`;
+}
