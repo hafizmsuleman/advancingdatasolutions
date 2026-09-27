@@ -59,5 +59,5 @@ export function DemoNote() {
 /** Small "Demo" label for demo items when showing All. */
 export function DemoTag({ show }: { show?: boolean | undefined }) {
   if (!show) return null;
-  return <span className="ml-1.5 inline-flex rounded border border-warning/30 bg-warning/10 px-1.5 py-px align-middle text-[10px] font-semibold uppercase tracking-wide text-warning">Demo</span>;
+  return <span className="ml-1.5 inline-flex rounded border border-border bg-muted px-1.5 py-px align-middle text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Demo</span>;
 }

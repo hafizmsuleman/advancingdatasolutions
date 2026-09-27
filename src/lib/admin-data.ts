@@ -8,7 +8,10 @@ import { setAdminTimeZone, tzLabel, type AdminBooking, type AdminLead, type Outb
 async function demoMode() {
   const { data } = await supabase.from("settings").select("demo_mode, team_timezone").eq("id", 1).single();
   if (data?.team_timezone) setAdminTimeZone(data.team_timezone);
-  return !!data?.demo_mode;
+  // Keep demo automations/emails on whenever the admin's view includes demo data.
+  const want = readView() !== "real";
+  if (data && data.demo_mode !== want) await supabase.from("settings").update({ demo_mode: want }).eq("id", 1);
+  return want;
 }
 
 export function useDemoMode() {
