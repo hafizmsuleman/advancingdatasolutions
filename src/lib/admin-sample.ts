@@ -182,5 +182,6 @@ export function tzLabel(tz: string) {
 export function cancellationText(b: AdminBooking) {
   if (b.status !== "cancelled") return "";
   const by = b.cancelReason?.startsWith("Cancelled by our team") ? "admin" : "client";
-  return `Cancelled on ${b.cancelledAt ? fmtIn(b.cancelledAt, browserTimeZone()) : "unknown date"} by ${by}${b.cancelReason && !["Cancelled by our team", "slot_taken", "replaced"].includes(b.cancelReason) ? ` · ${b.cancelReason}` : ""}`;
+  const reason = b.cancelReason?.startsWith("Cancelled by our team: ") ? b.cancelReason.slice("Cancelled by our team: ".length) : b.cancelReason;
+  return `Cancelled on ${b.cancelledAt ? fmtIn(b.cancelledAt, browserTimeZone()) : "unknown date"} by ${by}${reason && !["Cancelled by our team", "slot_taken", "replaced"].includes(reason) ? ` · ${reason}` : ""}`;
 }
