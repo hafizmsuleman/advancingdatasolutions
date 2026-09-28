@@ -102,7 +102,7 @@ function SettingsPage() {
 
   async function saveAll() {
     const { error } = await supabase.from("settings").update({
-      buffer_min: n.buffer, daily_cap: n.cap, min_notice_hours: n.notice, attendance_flag_hours: n.flag,
+      buffer_min: n.buffer, daily_cap: n.cap >= 1 ? n.cap : 3, min_notice_hours: n.notice, attendance_flag_hours: n.flag,
        team_timezone: availabilityTz, budget_threshold: BUDGET_TO_DB[threshold]!, fallback_meeting_link: link.trim() || null,
     }).eq("id", 1);
     if (error) { toast.error("Couldn't save settings"); return; }
