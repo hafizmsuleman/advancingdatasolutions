@@ -9,6 +9,7 @@ import { BookingDrawer } from "@/components/booking-drawer";
 import { cancelAdminBooking } from "@/lib/admin-booking.functions";
 import { cancellationText } from "@/lib/admin-sample";
 import { useServerFn } from "@tanstack/react-start";
+import { ActionDialog } from "@/components/action-dialog";
 
 export const Route = createFileRoute("/admin/bookings")({
   head: () => ({
@@ -41,6 +42,10 @@ function Bookings() {
   const [area, setArea] = useState("all");
   const [date, setDate] = useState("");
   const [open, setOpen] = useState<AdminBooking | null>(null);
+  const [action, setAction] = useState<{ booking: AdminBooking; kind: "cancelled" | "completed" | "no_show" | "block" } | null>(null);
+  const [reason, setReason] = useState("");
+  const [blockValue, setBlockValue] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const shown = rows
     .filter((b) => status === "all" || b.status === status)
@@ -48,26 +53,37 @@ function Bookings() {
     .filter((b) => !date || dayKeyIn(b.start, browserTimeZone()) === date)
     .sort((a, b) => a.start.localeCompare(b.start));
 
-  const set = async (id: string, s: BookingStatus, msg: string) => {
+  const set = async (id: string, s: BookingStatus, msg: string, reason = "") => {
     if (s === "cancelled") {
-      try { await cancelFn({ data: { id } }); toast.success(msg); invalidate(); }
-      catch { toast.error("Couldn't cancel the booking or queue its notice"); }
-      return;
+      try { await cancelFn({ data: { id, reason } }); toast.success(msg); invalidate(); return true; }
+      catch { toast.error("Couldn't cancel the booking or queue its notice"); return false; }
     }
     const patch = { status: s };
     if (s !== "completed") void supabase.from("messages").update({ status: "cancelled" }).eq("booking_id", id).eq("status", "scheduled")
       .in("type", ["nda_reminder", "reminder_24h", "reminder_1h"]).gt("scheduled_utc", new Date().toISOString());
-    supabase.from("bookings").update(patch).eq("id", id).then(({ error }) => {
-      if (error) { toast.error("Couldn't update the booking"); return; }
-      toast.success(msg);
-      invalidate();
-    });
+    const { error } = await supabase.from("bookings").update(patch).eq("id", id);
+    if (error) { toast.error("Couldn't update the booking"); return false; }
+    toast.success(msg);
+    invalidate();
+    return true;
   };
 
-  const block = async (b: AdminBooking) => {
-    const ok = await blockSender(b.email, "Bookings");
-    if (ok === null) return;
-    if (!ok) toast.error("Couldn't block this address"); else toast.success("Blocked");
+  const ask = (booking: AdminBooking, kind: "cancelled" | "completed" | "no_show" | "block") => {
+    setReason(""); setBlockValue(booking.email.toLowerCase()); setAction({ booking, kind });
+  };
+  const applyAction = async () => {
+    if (!action) return;
+    setBusy(true);
+    const { booking, kind } = action;
+    let ok: boolean;
+    if (kind === "block") {
+      ok = await blockSender(blockValue, "Bookings");
+      if (!ok) toast.error("Couldn't block this address"); else toast.success("Blocked");
+    } else {
+      ok = await set(booking.id, kind, kind === "cancelled" ? "Booking cancelled" : `${booking.company} marked ${kind === "no_show" ? "no-show" : "completed"}`, reason);
+    }
+    setBusy(false);
+    if (ok) setAction(null);
   };
 
   return (
@@ -121,13 +137,13 @@ function Bookings() {
                   {b.status === "confirmed" && (
                     <>
                       {Date.parse(b.start) <= Date.now() && (<>
-                      <button className={btn} onClick={() => set(b.id, "completed", `${b.company} marked completed`)}>Complete</button>
-                      <button className={btn} onClick={() => set(b.id, "no_show", `${b.company} marked no-show`)}>No-show</button>
+                       <button className={btn} onClick={() => ask(b, "completed")}>Complete</button>
+                       <button className={btn} onClick={() => ask(b, "no_show")}>No-show</button>
                       </>)}
-                      <button className={btn + " text-destructive"} onClick={() => confirm(`Cancel ${b.company}'s consultation?`) && set(b.id, "cancelled", "Booking cancelled")}>Cancel</button>
+                       <button className={btn + " text-destructive"} onClick={() => ask(b, "cancelled")}>Cancel</button>
                     </>
                   )}
-                    <button className={btn + " text-destructive"} onClick={() => block(b)}>Block</button>
+                     <button className={btn + " text-destructive"} onClick={() => ask(b, "block")}>Block</button>
                   </div>
                 </td>
               </tr>
@@ -135,6 +151,11 @@ function Bookings() {
           </tbody>
         </table>
       </Panel>
+      <ActionDialog open={!!action} onOpenChange={(v) => { if (!v) setAction(null); }}
+        title={action?.kind === "cancelled" ? `Cancel ${action.booking.company}'s consultation?` : action?.kind === "block" ? "Block this email, or edit it to a domain (e.g. example.com):" : action?.kind === "no_show" ? `Mark ${action.booking.company} as no-show?` : `Mark ${action?.booking.company ?? "booking"} as completed?`}
+        confirmLabel={action?.kind === "cancelled" ? "Cancel booking" : action?.kind === "block" ? "Block" : action?.kind === "no_show" ? "No-show" : "Complete"}
+        destructive={action?.kind === "cancelled" || action?.kind === "block"} busy={busy} onConfirm={applyAction}
+        input={action?.kind === "cancelled" ? { label: "Reason (optional)", value: reason, onChange: setReason, note: "This will be included in the email to the client", maxLength: 500, multiline: true } : action?.kind === "block" ? { label: "Email or domain", value: blockValue, onChange: setBlockValue, maxLength: 254 } : undefined} />
       <BookingDrawer b={open} onClose={() => setOpen(null)} />
     </div>
   );

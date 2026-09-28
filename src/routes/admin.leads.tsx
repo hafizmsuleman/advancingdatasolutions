@@ -7,6 +7,8 @@ import { browserTimeZone, fmtIn, type LeadStatus } from "@/lib/admin-sample";
 import { useAdminLeads, useInvalidateAdmin } from "@/lib/admin-data";
 import { blockSender, unblockSender } from "@/lib/admin-data";
 import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { ActionDialog } from "@/components/action-dialog";
 
 export const Route = createFileRoute("/admin/leads")({
   head: () => ({
@@ -35,6 +37,9 @@ const STATUS: Record<LeadStatus, { label: string; tone: "success" | "info" | "wa
 function Leads() {
   const { data: rows = [] } = useAdminLeads();
   const invalidate = useInvalidateAdmin();
+  const [action, setAction] = useState<{ lead: (typeof rows)[number]; kind: "resend" | "block" | "unblock" } | null>(null);
+  const [blockValue, setBlockValue] = useState("");
+  const [busy, setBusy] = useState(false);
   const resend = async (l: (typeof rows)[number]) => {
     const link = `${SITE_URL}/book?t=${l.bookingToken}`;
     const { error } = await supabase.from("messages").insert({
@@ -45,12 +50,22 @@ function Leads() {
     if (error) toast.error("Couldn't queue the email"); else { toast.success(`Booking link queued for ${l.email}`); invalidate(); }
   };
   const block = async (l: (typeof rows)[number]) => {
-    const ok = await blockSender(l.email, "Leads");
-    if (ok === null) return;
+    const ok = await blockSender(blockValue, "Leads");
     if (!ok) toast.error("Couldn't block this address"); else { toast.success("Blocked"); invalidate(); }
+    return ok;
   };
   const unblock = async (l: (typeof rows)[number]) => {
-    if (await unblockSender(l.email)) { toast.success("Unblocked"); invalidate(); } else toast.error("Couldn't unblock this address");
+    if (await unblockSender(l.email)) { toast.success("Unblocked"); invalidate(); return true; } else { toast.error("Couldn't unblock this address"); return false; }
+  };
+  const ask = (lead: (typeof rows)[number], kind: "resend" | "block" | "unblock") => {
+    setBlockValue(lead.email.toLowerCase()); setAction({ lead, kind });
+  };
+  const applyAction = async () => {
+    if (!action) return;
+    setBusy(true);
+    const ok = action.kind === "block" ? await block(action.lead) : action.kind === "unblock" ? await unblock(action.lead) : (await resend(action.lead), true);
+    setBusy(false);
+    if (ok) setAction(null);
   };
   return (
     <div className="mx-auto max-w-6xl">
@@ -79,15 +94,15 @@ function Leads() {
                 <td className={td}>
                   <div className="flex justify-end gap-1.5">
                     <button className={btn} disabled={!l.verified || l.status === "blocked" || l.status === "booked"}
-                      onClick={() => resend(l)}>
+                       onClick={() => ask(l, "resend")}>
                       <Send className="h-3 w-3" aria-hidden />Resend
                     </button>
                     {l.status === "blocked" ? (
-                      <button className={btn} onClick={() => unblock(l)}>
+                       <button className={btn} onClick={() => ask(l, "unblock")}>
                         <Ban className="h-3 w-3" aria-hidden />Unblock
                       </button>
                     ) : (
-                      <button className={btn + " text-destructive"} onClick={() => block(l)}>
+                       <button className={btn + " text-destructive"} onClick={() => ask(l, "block")}>
                         <Ban className="h-3 w-3" aria-hidden />Block
                       </button>
                     )}
@@ -98,6 +113,11 @@ function Leads() {
           </tbody>
         </table>
       </Panel>
+      <ActionDialog open={!!action} onOpenChange={(v) => { if (!v) setAction(null); }}
+        title={action?.kind === "block" ? "Block this email, or edit it to a domain (e.g. example.com):" : action?.kind === "unblock" ? `Unblock ${action.lead.email}?` : `Resend booking link to ${action?.lead.email ?? "this lead"}?`}
+        confirmLabel={action?.kind === "block" ? "Block" : action?.kind === "unblock" ? "Unblock" : "Resend"}
+        destructive={action?.kind === "block"} busy={busy} onConfirm={applyAction}
+        input={action?.kind === "block" ? { label: "Email or domain", value: blockValue, onChange: setBlockValue, maxLength: 254 } : undefined} />
     </div>
   );
 }
