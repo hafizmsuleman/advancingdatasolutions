@@ -47,9 +47,10 @@ function Leads() {
       subject: "Your booking link for a free consultation",
       body: `Hi ${l.name.split(" ")[0] || "there"},\n\nHere's your link to book a free consultation with our engineers. Your details are already filled in:\n${link}\n\nAdvancing Data Solutions`,
     });
-    if (error) toast.error("Couldn't queue the email"); else { toast.success(`Booking link queued for ${l.email}`); invalidate(); }
+    if (error) { toast.error("Couldn't queue the email"); return false; }
+    toast.success(`Booking link queued for ${l.email}`); invalidate(); return true;
   };
-  const block = async (l: (typeof rows)[number]) => {
+  const block = async () => {
     const ok = await blockSender(blockValue, "Leads");
     if (!ok) toast.error("Couldn't block this address"); else { toast.success("Blocked"); invalidate(); }
     return ok;
@@ -63,7 +64,7 @@ function Leads() {
   const applyAction = async () => {
     if (!action) return;
     setBusy(true);
-    const ok = action.kind === "block" ? await block(action.lead) : action.kind === "unblock" ? await unblock(action.lead) : (await resend(action.lead), true);
+    const ok = action.kind === "block" ? await block() : action.kind === "unblock" ? await unblock(action.lead) : await resend(action.lead);
     setBusy(false);
     if (ok) setAction(null);
   };
