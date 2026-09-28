@@ -9,7 +9,7 @@ type Props = {
   onConfirm: () => void | Promise<void>;
   busy?: boolean;
   destructive?: boolean;
-  input?: { label: string; value: string; onChange: (value: string) => void; note?: string; maxLength?: number; multiline?: boolean };
+  input?: { label: string; value: string; onChange: (value: string) => void; note?: string; maxLength?: number; multiline?: boolean } | undefined;
 };
 
 export function ActionDialog({ open, onOpenChange, title, confirmLabel, onConfirm, busy, destructive, input }: Props) {
