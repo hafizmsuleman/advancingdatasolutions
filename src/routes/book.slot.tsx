@@ -5,7 +5,7 @@ import { Globe, ChevronLeft, ChevronRight } from "lucide-react";
 import { BookingProgress } from "@/components/booking-progress";
 import { cn } from "@/lib/utils";
 import { loadDraft, saveDraft, type BookingDraft } from "@/lib/booking-draft";
-import { dateKey, generateSlots, partsIn, visitorDays, type Slot } from "@/lib/slots";
+import { DAY_PARTS, dateKey, generateSlots, partsIn, visitorDays, type Slot } from "@/lib/slots";
 import { useBusy } from "@/lib/use-busy";
 import { friendlyTimeZone } from "@/lib/time-zone-label";
 import { TimeZoneSelect } from "@/components/time-zone-select";
@@ -90,8 +90,7 @@ function SlotPage() {
   const fmtTime = (ms: number) => new Intl.DateTimeFormat(undefined, { timeZone: tz, hour: "numeric", minute: "2-digit" }).format(ms);
   const fmtDay = (ms: number, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(undefined, { timeZone: tz, ...o }).format(ms);
   const daySlots = byDay.get(day) ?? [];
-  const morning = daySlots.filter((s) => partsIn(s.start, tz).h < 12);
-  const afternoon = daySlots.filter((s) => partsIn(s.start, tz).h >= 12);
+  const groups = DAY_PARTS.map((p) => ({ label: p.label, items: daySlots.filter((s) => { const h = partsIn(s.start, tz).h; return h >= p.from && h < p.to; }) }));
   const selectedSlot = slots.find((s) => s.start === selected);
 
   function changeTz(z: string) {
@@ -198,8 +197,7 @@ function SlotPage() {
               <p className="mt-6 rounded-lg border border-dashed border-border p-6 text-center text-muted-foreground">{ready ? "No times available" : "Loading available times…"}</p>
             ) : (
               <>
-                <Group label="Morning" items={morning} />
-                <Group label="Afternoon" items={afternoon} />
+                {groups.map((g) => <Group key={g.label} label={g.label} items={g.items} />)}
               </>
             )}
           </div>

@@ -7,8 +7,13 @@ const BUFFER_MIN = 15;
 export const MAX_PER_DAY = 3;
 const NOTICE_MS = 24 * 3600_000;
 export const HORIZON_DAYS = 14;
-const LOCAL_START_MIN = 8 * 60;
-const LOCAL_END_MIN = 19 * 60;
+/** Part-of-day groups for the picker, by hour in the visitor's time zone. */
+export const DAY_PARTS = [
+  { label: "Night", from: 0, to: 5 },
+  { label: "Morning", from: 5, to: 12 },
+  { label: "Afternoon", from: 12, to: 17 },
+  { label: "Evening", from: 17, to: 24 },
+] as const;
 
 type Parts = { y: number; m: number; d: number; h: number; min: number; wd: number };
 const WD: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
@@ -83,12 +88,7 @@ export function generateSlots(opts: { now: number; duration: 30 | 60; visitorTz:
       if (s < earliest || s > horizonEnd) continue;
       const clash = busy.some((b) => s < b.end + BUFFER_MIN * 60000 && e > b.start - BUFFER_MIN * 60000);
       if (clash) continue;
-      const ls = partsIn(s, visitorTz);
-      const le = partsIn(e, visitorTz);
-      const sMin = ls.h * 60 + ls.min;
-      const eMin = le.h * 60 + le.min;
-      const sameDay = dateKey(s, visitorTz) === dateKey(e - 1, visitorTz);
-      if (!sameDay || sMin < LOCAL_START_MIN || eMin > LOCAL_END_MIN || (eMin === 0)) continue;
+      void visitorTz; // no client-local hour filter: every slot in the team's availability is offered
       slots.push({ start: s, end: e });
     }
   }

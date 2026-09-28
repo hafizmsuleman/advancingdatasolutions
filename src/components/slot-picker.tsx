@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Globe, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { dateKey, generateSlots, partsIn, visitorDays, type Slot } from "@/lib/slots";
+import { DAY_PARTS, dateKey, generateSlots, partsIn, visitorDays, type Slot } from "@/lib/slots";
 import { useBusy } from "@/lib/use-busy";
 import { useRef } from "react";
 import { friendlyTimeZone } from "@/lib/time-zone-label";
@@ -48,10 +48,7 @@ export function SlotPicker(props: {
   const fmtTime = (ms: number) => new Intl.DateTimeFormat(undefined, { timeZone: tz, hour: "numeric", minute: "2-digit" }).format(ms);
   const fmtDay = (ms: number, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(undefined, { timeZone: tz, ...o }).format(ms);
   const daySlots = byDay.get(day) ?? [];
-  const groups = [
-    { label: "Morning", items: daySlots.filter((s) => partsIn(s.start, tz).h < 12) },
-    { label: "Afternoon", items: daySlots.filter((s) => partsIn(s.start, tz).h >= 12) },
-  ];
+  const groups = DAY_PARTS.map((p) => ({ label: p.label, items: daySlots.filter((s) => { const h = partsIn(s.start, tz).h; return h >= p.from && h < p.to; }) }));
 
   return (
     <div>
