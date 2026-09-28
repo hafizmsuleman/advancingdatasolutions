@@ -15,9 +15,9 @@ import type { Extracted } from "@/lib/inbox.server";
 export const Route = createFileRoute("/admin/inbox")({
   head: () => ({
     meta: [
-      { title: "Inbox — Admin — Advancing Data Solutions" },
+      { title: "Inquiry assistant — Admin — Advancing Data Solutions" },
       { name: "description", content: "Turn pasted inquiries into leads with a reply draft." },
-      { property: "og:title", content: "Inbox — Admin — Advancing Data Solutions" },
+      { property: "og:title", content: "Inquiry assistant — Admin — Advancing Data Solutions" },
       { property: "og:description", content: "Turn pasted inquiries into leads with a reply draft." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -96,7 +96,7 @@ function InboxPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <PageIntro title="Inbox">Paste an inquiry from any channel. We'll extract the brief and draft a reply with a prefilled booking link.</PageIntro>
+      <PageIntro title="Inquiry assistant">Paste an inquiry from any channel. We'll extract the brief and draft a reply with a prefilled booking link.</PageIntro>
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel className="p-4">
           <label htmlFor="inq" className="text-sm font-medium">Inquiry text</label>
