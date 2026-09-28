@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 
 import logoAsset from "@/assets/ads-logo-horizontal.svg.asset.json";
 
