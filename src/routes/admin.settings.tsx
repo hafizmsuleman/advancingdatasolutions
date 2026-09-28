@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Panel, PageIntro, btn, btnPrimary, field } from "@/components/admin-ui";
+import { ActionDialog } from "@/components/action-dialog";
 
 export const Route = createFileRoute("/admin/settings")({
   head: () => ({
@@ -70,6 +71,7 @@ function SettingsPage() {
   const [generating, setGenerating] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [running, setRunning] = useState(false);
+  const [demoAction, setDemoAction] = useState<"reset" | "generate" | null>(null);
   const [lastRun, setLastRun] = useState<{ at: string; summary: string } | null>(null);
   const WD = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
   const hhmm = (t: string) => (t.startsWith("24") ? "24:00" : t.slice(0, 5));
@@ -158,7 +160,7 @@ function SettingsPage() {
     setGenerating(false);
   }
   async function restoreDemo() {
-    if (!demo || !window.confirm("Delete all demo data and restore the original sample bookings, leads and emails? Real data will stay as it is.")) return;
+     if (!demo) return;
     setResetting(true);
     try {
       await resetFn();
@@ -257,8 +259,8 @@ function SettingsPage() {
               <button key={h} className={btn + " h-9"} disabled={!demo} onClick={() => setClock(offset + h)}>+{h}h</button>
             ))}
             <button className={btn + " h-9"} disabled={!demo || offset === 0} onClick={() => setClock(0)}>Reset</button>
-            {demo && <button className={btn + " h-9"} disabled={resetting} onClick={restoreDemo}>{resetting ? "Restoring…" : "Reset demo data"}</button>}
-            {demo && <button className={btn + " h-9"} disabled={generating} onClick={generateDemo}>{generating ? "Adding…" : "Generate sample data"}</button>}
+             {demo && <button className={btn + " h-9"} disabled={resetting} onClick={() => setDemoAction("reset")}>{resetting ? "Restoring…" : "Reset demo data"}</button>}
+             {demo && <button className={btn + " h-9"} disabled={generating} onClick={() => setDemoAction("generate")}>{generating ? "Adding…" : "Generate sample data"}</button>}
           </div>
           {demo && (
             <div className="mt-3 rounded-[10px] border border-border bg-muted px-3 py-2 text-sm" role="status">
@@ -271,6 +273,11 @@ function SettingsPage() {
           </div>
         </div>
       </Section>
+       <ActionDialog open={demoAction !== null} onOpenChange={(open) => { if (!open) setDemoAction(null); }}
+         title={demoAction === "reset" ? "Delete all demo data and restore the original sample bookings, leads and emails? Real data will stay as it is." : "Generate sample data?"}
+         confirmLabel={demoAction === "reset" ? "Reset demo data" : "Generate sample data"}
+         destructive={demoAction === "reset"} busy={resetting || generating}
+         onConfirm={async () => { if (demoAction === "reset") await restoreDemo(); else await generateDemo(); setDemoAction(null); }} />
     </div>
   );
 }
