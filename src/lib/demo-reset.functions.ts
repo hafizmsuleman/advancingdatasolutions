@@ -8,6 +8,9 @@ export const resetDemoData = createServerFn({ method: "POST" })
     // The database function verifies admin access again and performs the entire restore atomically.
     const { error } = await context.supabase.rpc("reset_demo_data" as "is_admin");
     if (error) throw new Error(error.message);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { placeDemoBookings } = await import("./demo-placement.server");
+    await placeDemoBookings(supabaseAdmin);
     return { ok: true };
   });
 
@@ -19,5 +22,8 @@ export const generateDemoData = createServerFn({ method: "POST" })
     // Admin- and demo-mode-checked in the database; inserts is_demo rows only.
     const { error } = await context.supabase.rpc("generate_demo_data");
     if (error) throw new Error(error.message);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { placeDemoBookings } = await import("./demo-placement.server");
+    await placeDemoBookings(supabaseAdmin);
     return { ok: true };
   });

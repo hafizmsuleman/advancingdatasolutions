@@ -7,7 +7,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { AREAS, BUDGETS, PLATFORMS, TIMELINES } from "./booking-draft";
 import { BUDGET_TO_DB, NEED_TO_DB, PLATFORM_TO_DB } from "./enums";
-import { generateSlots, type Busy } from "./slots";
+import { dateKey, generateSlots, MAX_PER_DAY, type Busy } from "./slots";
 import { cancelPendingReminders, scheduleReminders } from "./automations.server";
 import { calendarBusy, meetingLink, syncBookingCalendar } from "./calendar.server";
 import { deliverMessage } from "./mailer.server";
@@ -43,19 +43,13 @@ async function isBlocked(db: Awaited<ReturnType<typeof admin>>, email: string) {
   return data?.length ? ("blocked" as const) : null;
 }
 
-/** Busy intervals for the slot picker (no client data leaves the server). */
-async function loadBusy(db: Awaited<ReturnType<typeof admin>>, excludeToken?: string): Promise<Busy[]> {
-  return (await loadSchedule(db, excludeToken)).busy;
-}
-
 /** Busy times plus the team's availability time zone (Settings → Your time zone). */
 async function loadSchedule(db: Awaited<ReturnType<typeof admin>>, excludeToken?: string): Promise<{ busy: Busy[]; teamTz: string }> {
   const { data: s } = await db.from("settings").select("team_timezone").eq("id", 1).single();
-  // Demo bookings never block public times.
+  // Demo bookings block public times exactly like real ones.
   const q = db.from("bookings").select("start_utc,end_utc,manage_token,is_demo,google_event_id")
     .in("status", ["confirmed", "attendance_confirmed"])
-    .gte("end_utc", new Date(Date.now() - 86400_000).toISOString())
-    .eq("is_demo", false);
+    .gte("end_utc", new Date(Date.now() - 86400_000).toISOString());
   const [{ data }, cal] = await Promise.all([q, calendarBusy()]);
   const own = (data ?? []).find((b) => b.manage_token === excludeToken)?.google_event_id;
   const bookings: Busy[] = (data ?? []).filter((b) => b.manage_token !== excludeToken)
@@ -226,7 +220,10 @@ export const verifyCode = createServerFn({ method: "POST" })
         const s = Date.parse(pend.start_utc), e = Date.parse(pend.end_utc), buf = 15 * 60_000;
         const { data: own } = await db.from("bookings").select("manage_token").eq("id", data.bookingId).single();
         // Exclude this booking itself: it is already confirmed at this point.
-        const clash = (await loadBusy(db, own?.manage_token)).some((x) => s < x.end + buf && e > x.start - buf);
+        const sched = await loadSchedule(db, own?.manage_token);
+        const dayOf = (ms: number) => dateKey(ms, sched.teamTz);
+        const sameDay = sched.busy.filter((x) => !x.calendar && dayOf(x.start) === dayOf(s)).length;
+        const clash = sameDay >= MAX_PER_DAY || sched.busy.some((x) => s < x.end + buf && e > x.start - buf);
         if (clash) {
           await db.from("bookings").update({ status: "cancelled", cancelled_at: new Date().toISOString(), cancel_reason: "slot_taken" }).eq("id", data.bookingId);
           await cancelPendingReminders(db, data.bookingId);
