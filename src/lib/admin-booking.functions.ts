@@ -25,7 +25,7 @@ export const cancelAdminBooking = createServerFn({ method: "POST" })
     const { data: row, error: messageError } = await db.from("messages").insert({
       type: "cancel_notice", to_email: b.email, booking_id: b.id, lead_id: b.lead_id,
       subject: "Your consultation has been cancelled", is_demo: b.is_demo,
-       body: `We've cancelled your consultation and released the time.${reason ? `\nReason: ${reason}` : ""} You're welcome to book a new time:\n${origin}/book\n\nThe Advancing Data Solutions team`,
+       body: `We've cancelled your consultation and released the time.${reason ? `\nReason: ${reason}\n` : " "}You're welcome to book a new time:\n${origin}/book\n\nThe Advancing Data Solutions team`,
     }).select("id").single();
     if (row) await deliverMessage(db, row.id);
     if (messageError) throw new Error("Booking cancelled, but the notice couldn't be queued");
