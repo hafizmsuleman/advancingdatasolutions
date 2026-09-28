@@ -253,7 +253,7 @@ export const verifyCode = createServerFn({ method: "POST" })
       await queueMessage(db, {
         type: "confirmation", to: b.email, bookingId: b.id, leadId: b.lead_id, minutes: 10,
         subject: `You're booked: Free Consultation (${b.length_min} min)`,
-        body: `Hi ${(lead?.full_name ?? "").split(" ")[0] || "there"},\n\nThanks for booking a free ${b.length_min}-minute consultation with our engineers. Your call is on ${when}.\n\nMeeting link: ${link}${attend}\n\nAdd it to Google Calendar: ${cal}\n\nOr download a calendar file (.ics) for Outlook or Apple Calendar: ${origin}/booked/${b.manage_token}\n\nSo you can share details freely on the call, please sign our short mutual NDA before the consultation: ${origin}/nda/${b.manage_token}\n\nNeed another time? ${origin}/reschedule/${b.manage_token}\n\nCan't make it? ${origin}/cancel/${b.manage_token}${SIGN}`,
+        body: `Hi ${(lead?.full_name ?? "").split(" ")[0] || "there"},\n\nThanks for booking a free ${b.length_min}-minute consultation with our engineers. Your call is on ${when}.\n\nMeeting link: ${link}${attend}\n\nAdd it to your calendar: ${cal}\n\nSo you can share details freely on the call, please sign our short mutual NDA before the consultation: ${origin}/nda/${b.manage_token}\n\nNeed another time? ${origin}/reschedule/${b.manage_token}\n\nCan't make it? ${origin}/cancel/${b.manage_token}${SIGN}`,
       });
       await scheduleReminders(db, { ...b, full_name: lead?.full_name ?? null }, origin, { nda: true });
       await queueMessage(db, {

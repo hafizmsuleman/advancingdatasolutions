@@ -80,7 +80,7 @@ export async function syncBookingCalendar(d: DB, bookingId: string): Promise<Syn
     if (!active) {
       if (b.google_event_id) {
         try {
-          await gcal(`/calendars/${CAL}/events/${encodeURIComponent(b.google_event_id)}?sendUpdates=none`, { method: "DELETE" });
+          await gcal(`/calendars/${CAL}/events/${encodeURIComponent(b.google_event_id)}?sendUpdates=all`, { method: "DELETE" });
         } catch (e) {
           const s = (e as { status?: number }).status;
           if (s !== 404 && s !== 410) throw e;
@@ -120,14 +120,14 @@ export async function syncBookingCalendar(d: DB, bookingId: string): Promise<Syn
     let ev: { id: string; hangoutLink?: string; conferenceData?: { entryPoints?: { entryPointType: string; uri: string }[] } } | null = null;
     if (b.google_event_id) {
       try {
-        ev = await gcal(`/calendars/${CAL}/events/${encodeURIComponent(b.google_event_id)}?sendUpdates=none&conferenceDataVersion=1`, { method: "PATCH", body: JSON.stringify(body) });
+        ev = await gcal(`/calendars/${CAL}/events/${encodeURIComponent(b.google_event_id)}?sendUpdates=all&conferenceDataVersion=1`, { method: "PATCH", body: JSON.stringify(body) });
       } catch (e) {
         const s = (e as { status?: number }).status;
         if (s !== 404 && s !== 410) throw e;
       }
     }
     if (!ev) {
-      ev = await gcal(`/calendars/${CAL}/events?sendUpdates=none&conferenceDataVersion=1`, {
+      ev = await gcal(`/calendars/${CAL}/events?sendUpdates=all&conferenceDataVersion=1`, {
         method: "POST",
         body: JSON.stringify({ ...body, conferenceData: { createRequest: { requestId: `ads-${b.id}-${Date.now()}`, conferenceSolutionKey: { type: "hangoutsMeet" } } } }),
       });
