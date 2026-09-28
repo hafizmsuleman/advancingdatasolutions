@@ -12,7 +12,7 @@ import {
   CalendarDays,
   Users,
   Mail,
-  Inbox,
+  Sparkles,
   Settings,
   LogOut,
   Menu,
@@ -49,7 +49,7 @@ const NAV: NavItem[] = [
   { title: "Bookings", to: "/admin/bookings", icon: CalendarDays },
   { title: "Leads", to: "/admin/leads", icon: Users },
   { title: "Outbox", to: "/admin/outbox", icon: Mail },
-  { title: "Inbox", to: "/admin/inbox", icon: Inbox },
+  { title: "Inquiry assistant", to: "/admin/inbox", icon: Sparkles },
   { title: "Settings", to: "/admin/settings", icon: Settings },
 ];
 
