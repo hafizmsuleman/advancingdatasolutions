@@ -43,11 +43,6 @@ async function isBlocked(db: Awaited<ReturnType<typeof admin>>, email: string) {
   return data?.length ? ("blocked" as const) : null;
 }
 
-/** Busy intervals for the slot picker (no client data leaves the server). */
-async function loadBusy(db: Awaited<ReturnType<typeof admin>>, excludeToken?: string): Promise<Busy[]> {
-  return (await loadSchedule(db, excludeToken)).busy;
-}
-
 /** Busy times plus the team's availability time zone (Settings → Your time zone). */
 async function loadSchedule(db: Awaited<ReturnType<typeof admin>>, excludeToken?: string): Promise<{ busy: Busy[]; teamTz: string }> {
   const { data: s } = await db.from("settings").select("team_timezone").eq("id", 1).single();
