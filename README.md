@@ -1,26 +1,32 @@
-# Advancing Data Solutions
+# Advancing Data Solutions Booking Portal
 
-Create a new project called "Advancing Data Solutions Booking Portal". For now, build only a simple placeholder landing page with the heading "Talk to an engineer about your AI, data or web project". Nothing else yet.
+Built with Lovable for the "Built it for small business" challenge.
 
-This project was built with [Lovable](https://lovable.dev).
+A booking portal built for how a consultancy works. It qualifies and routes every inquiry, collects the project brief and NDA before the call, books real Google Calendar times, and handles reminders, attendance checks and follow ups automatically.
 
-**Live app**: https://advancingdatasolutions.lovable.app
+## Links
 
-## Build with Lovable
+- Live app: https://book.advancingdatasolutions.com
+- Lovable address: https://advancingdatasolutions.lovable.app (redirects to the live app)
+- Company website: https://advancingdatasolutions.com
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/639d3410-a4ca-40ad-b551-be830977a438).
+## For clients
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+- Choose a project area (Data, AI or Web) and share project details
+- 30 or 60 minute call, suggested from budget and timeline
+- Only real free times from Google Calendar, shown in the client's time zone
+- Email code to confirm the booking
+- Booking page with Meet link, calendar add, NDA, reschedule and cancel
 
-## Development
+## For us
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+- Dashboard and bookings
+- Leads view (mini CRM) with follow up nudges
+- Inquiry assistant: paste a LinkedIn or email message, it extracts the details, saves the lead and drafts a reply
+- Automatic reminders, attendance confirmation and a day before check
+- Outbox of all sent emails
+- Settings for hours, time zone, buffers, notice and blocked email domains
 
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
-```
+## About this repository
+
+This is the source code of the Lovable project. The Lovable project uses private Google Calendar and email connections, so the code is shared here for review. Secrets and data are stored in Lovable Cloud and are not part of this repository.
