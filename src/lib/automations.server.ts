@@ -238,6 +238,9 @@ export async function runAutomations(origin: string) {
       }, l.is_demo);
       c.nudges++;
     }
+    // 7a. Close out emails that missed the 6h send window (never sent late).
+    await d.from("messages").update({ status: "cancelled", error: "Missed send window" })
+      .eq("status", "scheduled").lt("scheduled_utc", new Date(now - 6 * H).toISOString());
     // 7. Send every due email (reminders, retries of failed sends).
     const out = await deliverDue(d);
     c.sent = out.sent; c.sendFailed = out.failed;
