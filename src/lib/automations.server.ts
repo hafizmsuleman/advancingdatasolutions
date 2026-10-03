@@ -49,11 +49,15 @@ export async function scheduleReminders(d: DB, b: BookingForMail, origin: string
   const hi = `Hi ${first(b.full_name)},\n\n`;
   const rows: Database["public"]["Tables"]["messages"]["Insert"][] = [];
   const ndaAt = Date.parse(b.created_at) + 2 * H;
-  if (opts.nda && ndaAt < start) rows.push({
-    type: "nda_reminder", booking_id: b.id, lead_id: b.lead_id, to_email: b.email, scheduled_utc: new Date(Math.max(ndaAt, now)).toISOString(),
+  const nda = (at: number) => ({
+    type: "nda_reminder" as const, booking_id: b.id, lead_id: b.lead_id, to_email: b.email, scheduled_utc: new Date(at).toISOString(),
     subject: "Please sign the NDA before your consultation",
     body: `${hi}So you can share details freely on the call, please sign our short mutual NDA before your consultation on ${when(b.start_utc, b.client_tz)}:\n${origin}/nda/${b.manage_token}${SIGN}`,
   });
+  // Call under 3h after booking: only the 1h-before reminder, so two don't land close together.
+  const late = start - Date.parse(b.created_at) < 3 * H;
+  if (opts.nda && !late && ndaAt < start) rows.push(nda(Math.max(ndaAt, now)));
+  if (opts.nda && start - H > now) rows.push(nda(start - H));
   // Booked less than 26h ahead: the confirmation already carries the attendance link.
   if (start - Date.parse(b.created_at) >= 26 * H && start - 24 * H > now) rows.push({
     type: "reminder_24h", booking_id: b.id, lead_id: b.lead_id, to_email: b.email, scheduled_utc: new Date(start - 24 * H).toISOString(),
@@ -112,14 +116,15 @@ export async function runAutomations(origin: string) {
     }
 
     // 3. Drop due reminders that no longer apply (NDA signed, booking no longer active).
-    const { data: due } = await d.from("messages").select("id,type,booking_id, bookings(status, ndas(id))")
+    const { data: due } = await d.from("messages").select("id,type,booking_id, bookings(status, start_utc, ndas(id))")
       .eq("status", "scheduled").in("type", REMINDER_TYPES).lte("scheduled_utc", nowIso)
       .gte("scheduled_utc", new Date(now - 2 * H).toISOString()).limit(BATCH);
     const drop = (due ?? []).filter((m) => {
-      const b = m.bookings as { status: string; ndas: { id: string }[] | { id: string } | null } | null;
+      const b = m.bookings as { status: string; start_utc: string; ndas: { id: string }[] | { id: string } | null } | null;
       if (!b || !["confirmed", "attendance_confirmed"].includes(b.status)) return true;
       const signed = Array.isArray(b.ndas) ? b.ndas.length > 0 : !!b.ndas;
       if (m.type === "reminder_24h" && b.status === "attendance_confirmed") return true;
+      if (m.type === "nda_reminder" && Date.parse(b.start_utc) <= now) return true;
       return m.type === "nda_reminder" && signed;
     }).map((m) => m.id);
     if (drop.length) {
@@ -144,12 +149,16 @@ export async function runAutomations(origin: string) {
       if (b.is_demo && start > t) {
         const signed = Array.isArray(b.ndas) ? b.ndas.length > 0 : !!b.ndas;
         const wants: MsgType[] = [];
-        if (!signed && t >= Date.parse(b.created_at) + 2 * H) wants.push("nda_reminder");
+        const lateDemo = start - Date.parse(b.created_at) < 3 * H;
+        if (!signed && ((!lateDemo && t >= Date.parse(b.created_at) + 2 * H) || start - t <= H)) wants.push("nda_reminder");
         if (start - t <= 24 * H && start - Date.parse(b.created_at) >= 26 * H) wants.push("reminder_24h");
         if (start - t <= H) wants.push("reminder_1h");
         if (wants.length) {
           const { data: have } = await d.from("messages").select("type").eq("booking_id", b.id).in("type", wants).neq("status", "cancelled");
-          for (const w of wants.filter((x) => !(have ?? []).some((h) => h.type === x))) {
+          // NDA: up to two (2h after booking, 1h before), one under 3h lead time.
+          const ndaWant = !wants.includes("nda_reminder") ? 0 : lateDemo ? 1 : (start - t <= H && t >= Date.parse(b.created_at) + 2 * H ? 2 : 1);
+          const ndaHave = (have ?? []).filter((h) => h.type === "nda_reminder").length;
+          for (const w of wants.filter((x) => x === "nda_reminder" ? ndaHave < ndaWant : !(have ?? []).some((h) => h.type === x))) {
             const subj = w === "nda_reminder" ? "Your NDA is ready to sign" : w === "reminder_24h" ? "Tomorrow: your consultation" : "Starting in 1 hour: your consultation";
             await queue(d, { type: w, booking_id: b.id, lead_id: b.lead_id, to_email: b.email, subject: subj,
               body: `${first(lead?.full_name)}'s consultation on ${when(b.start_utc, b.client_tz)} (demo, simulated time).\n\n${origin}/booked/${b.manage_token}${SIGN}` }, true);

@@ -19,14 +19,14 @@ export function SlotPicker(props: {
   excludeToken?: string | undefined;
 }) {
   const { duration, tz, onTzChange, selected, onSelect, excludeStart, excludeToken } = props;
-  const { busy, teamTz, ready, now } = useBusy(excludeToken);
+  const { busy, teamTz, rules, ready, now } = useBusy(excludeToken);
   const [editingTz, setEditingTz] = useState(false);
   const [day, setDay] = useState("");
   const tabsRef = useRef<HTMLDivElement>(null);
 
   const slots = useMemo(
-    () => (ready ? generateSlots({ now, duration, visitorTz: tz, busy, teamTz }).filter((s) => s.start !== excludeStart) : []),
-    [ready, now, duration, tz, excludeStart, busy, teamTz],
+    () => (ready ? generateSlots({ now, duration, visitorTz: tz, busy, teamTz, rules }).filter((s) => s.start !== excludeStart) : []),
+    [ready, now, duration, tz, excludeStart, busy, teamTz, rules],
   );
   const days = useMemo(() => visitorDays(now, tz), [now, tz]);
   const byDay = useMemo(() => {

@@ -7,7 +7,8 @@ import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { AREAS, BUDGETS, PLATFORMS, TIMELINES } from "./booking-draft";
 import { BUDGET_TO_DB, NEED_TO_DB, PLATFORM_TO_DB } from "./enums";
-import { dateKey, generateSlots, MAX_PER_DAY, type Busy } from "./slots";
+import { dateKey, generateSlots, type Busy, type Rules } from "./slots";
+import { loadRules } from "./schedule-rules.server";
 import { cancelPendingReminders, scheduleReminders } from "./automations.server";
 import { calendarBusy, meetingLink, syncBookingCalendar } from "./calendar.server";
 import { deliverMessage } from "./mailer.server";
@@ -43,9 +44,9 @@ async function isBlocked(db: Awaited<ReturnType<typeof admin>>, email: string) {
   return data?.length ? ("blocked" as const) : null;
 }
 
-/** Busy times plus the team's availability time zone (Settings → Your time zone). */
-async function loadSchedule(db: Awaited<ReturnType<typeof admin>>, excludeToken?: string): Promise<{ busy: Busy[]; teamTz: string }> {
-  const { data: s } = await db.from("settings").select("team_timezone").eq("id", 1).single();
+/** Busy times, the team's availability time zone and the saved scheduling rules (Settings). */
+async function loadSchedule(db: Awaited<ReturnType<typeof admin>>, excludeToken?: string): Promise<{ busy: Busy[]; teamTz: string; rules: Rules }> {
+  const { teamTz, rules } = await loadRules(db);
   // Demo bookings block public times exactly like real ones.
   const q = db.from("bookings").select("start_utc,end_utc,manage_token,is_demo,google_event_id")
     .in("status", ["confirmed", "attendance_confirmed"])
@@ -56,7 +57,7 @@ async function loadSchedule(db: Awaited<ReturnType<typeof admin>>, excludeToken?
     .map((b) => ({ start: Date.parse(b.start_utc), end: Date.parse(b.end_utc) }));
   // Google busy times (minus this booking's own event when rescheduling); only start/end leave the server.
   const google: Busy[] = cal.filter((c) => c.eventId !== own).map((c) => ({ start: c.start, end: c.end, calendar: true }));
-  return { busy: [...bookings, ...google], teamTz: s?.team_timezone || "Asia/Karachi" };
+  return { busy: [...bookings, ...google], teamTz, rules };
 }
 
 export const getBusy = createServerFn({ method: "GET" })
@@ -217,13 +218,14 @@ export const verifyCode = createServerFn({ method: "POST" })
       // Live calendar re-check right after confirming: release if the time now clashes.
       const { data: pend } = await db.from("bookings").select("start_utc,end_utc").eq("id", data.bookingId).single();
       if (pend) {
-        const s = Date.parse(pend.start_utc), e = Date.parse(pend.end_utc), buf = 15 * 60_000;
+        const s = Date.parse(pend.start_utc), e = Date.parse(pend.end_utc);
         const { data: own } = await db.from("bookings").select("manage_token").eq("id", data.bookingId).single();
         // Exclude this booking itself: it is already confirmed at this point.
         const sched = await loadSchedule(db, own?.manage_token);
         const dayOf = (ms: number) => dateKey(ms, sched.teamTz);
         const sameDay = sched.busy.filter((x) => !x.calendar && dayOf(x.start) === dayOf(s)).length;
-        const clash = sameDay >= MAX_PER_DAY || sched.busy.some((x) => s < x.end + buf && e > x.start - buf);
+        const buf = sched.rules.bufferMin * 60_000;
+        const clash = sameDay >= sched.rules.cap || sched.busy.some((x) => s < x.end + buf && e > x.start - buf);
         if (clash) {
           await db.from("bookings").update({ status: "cancelled", cancelled_at: new Date().toISOString(), cancel_reason: "slot_taken" }).eq("id", data.bookingId);
           await cancelPendingReminders(db, data.bookingId);
