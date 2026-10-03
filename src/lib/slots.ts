@@ -70,23 +70,38 @@ export function sampleBookings(now: number): Busy[] {
 
 export type Slot = { start: number; end: number };
 
-export function generateSlots(opts: { now: number; duration: 30 | 60; visitorTz: string; busy: Busy[]; teamTz?: string | undefined }) {
+/** Saved scheduling rules (Admin → Settings). windows: weekday 0=Sun..6=Sat → minutes from midnight. */
+export type Rules = {
+  windows: Record<number, { from: number; to: number }>;
+  noticeMin: number; bufferMin: number; cap: number; horizonDays: number; stepMin: number;
+};
+const W = { from: AVAIL_START_MIN, to: AVAIL_END_MIN };
+export const DEFAULT_RULES: Rules = {
+  windows: { 1: W, 2: W, 3: W, 4: W, 5: W },
+  noticeMin: NOTICE_MS / 60000, bufferMin: BUFFER_MIN, cap: MAX_PER_DAY, horizonDays: HORIZON_DAYS, stepMin: STEP_MIN,
+};
+
+export function generateSlots(opts: { now: number; duration: 30 | 60; visitorTz: string; busy: Busy[]; teamTz?: string | undefined; rules?: Rules | undefined }) {
   const { now, duration, visitorTz, busy } = opts;
   const team = opts.teamTz || TEAM_TZ;
+  const r = opts.rules ?? DEFAULT_RULES;
   const slots: Slot[] = [];
-  const earliest = now + NOTICE_MS;
-  const horizonEnd = now + HORIZON_DAYS * 86400_000;
-  for (let i = 0; i <= HORIZON_DAYS; i++) {
+  const earliest = now + r.noticeMin * 60000;
+  const horizonEnd = now + r.horizonDays * 86400_000;
+  const step = Math.max(5, r.stepMin) * 60000;
+  const buf = r.bufferMin * 60000;
+  for (let i = 0; i <= r.horizonDays; i++) {
     const p = partsIn(now + i * 86400_000, team);
-    if (p.wd === 0 || p.wd === 6) continue;
-    const dayStart = zonedToUtc(p.y, p.m, p.d, AVAIL_START_MIN, team);
-    const dayEnd = zonedToUtc(p.y, p.m, p.d, AVAIL_END_MIN, team);
+    const w = r.windows[p.wd];
+    if (!w) continue;
+    const dayStart = zonedToUtc(p.y, p.m, p.d, w.from, team);
+    const dayEnd = zonedToUtc(p.y, p.m, p.d, w.to, team);
     const dayBusy = busy.filter((b) => !b.calendar && b.start >= dayStart && b.start < dayEnd);
-    if (dayBusy.length >= MAX_PER_DAY) continue;
-    for (let s = dayStart; s + duration * 60000 <= dayEnd; s += STEP_MIN * 60000) {
+    if (dayBusy.length >= r.cap) continue;
+    for (let s = dayStart; s + duration * 60000 <= dayEnd; s += step) {
       const e = s + duration * 60000;
       if (s < earliest || s > horizonEnd) continue;
-      const clash = busy.some((b) => s < b.end + BUFFER_MIN * 60000 && e > b.start - BUFFER_MIN * 60000);
+      const clash = busy.some((b) => s < b.end + buf && e > b.start - buf);
       if (clash) continue;
       void visitorTz; // no client-local hour filter: every slot in the team's availability is offered
       slots.push({ start: s, end: e });

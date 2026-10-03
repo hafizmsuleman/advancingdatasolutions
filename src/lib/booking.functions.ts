@@ -43,9 +43,9 @@ async function isBlocked(db: Awaited<ReturnType<typeof admin>>, email: string) {
   return data?.length ? ("blocked" as const) : null;
 }
 
-/** Busy times plus the team's availability time zone (Settings → Your time zone). */
-async function loadSchedule(db: Awaited<ReturnType<typeof admin>>, excludeToken?: string): Promise<{ busy: Busy[]; teamTz: string }> {
-  const { data: s } = await db.from("settings").select("team_timezone").eq("id", 1).single();
+/** Busy times, the team's availability time zone and the saved scheduling rules (Settings). */
+async function loadSchedule(db: Awaited<ReturnType<typeof admin>>, excludeToken?: string): Promise<{ busy: Busy[]; teamTz: string; rules: Rules }> {
+  const [s, rules] = await Promise.all([loadRules(db), loadRules(db).then((x) => x.rules)]);
   // Demo bookings block public times exactly like real ones.
   const q = db.from("bookings").select("start_utc,end_utc,manage_token,is_demo,google_event_id")
     .in("status", ["confirmed", "attendance_confirmed"])
@@ -56,7 +56,7 @@ async function loadSchedule(db: Awaited<ReturnType<typeof admin>>, excludeToken?
     .map((b) => ({ start: Date.parse(b.start_utc), end: Date.parse(b.end_utc) }));
   // Google busy times (minus this booking's own event when rescheduling); only start/end leave the server.
   const google: Busy[] = cal.filter((c) => c.eventId !== own).map((c) => ({ start: c.start, end: c.end, calendar: true }));
-  return { busy: [...bookings, ...google], teamTz: s?.team_timezone || "Asia/Karachi" };
+  return { busy: [...bookings, ...google], teamTz: s.teamTz, rules };
 }
 
 export const getBusy = createServerFn({ method: "GET" })
