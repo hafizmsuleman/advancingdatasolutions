@@ -49,11 +49,15 @@ export async function scheduleReminders(d: DB, b: BookingForMail, origin: string
   const hi = `Hi ${first(b.full_name)},\n\n`;
   const rows: Database["public"]["Tables"]["messages"]["Insert"][] = [];
   const ndaAt = Date.parse(b.created_at) + 2 * H;
-  if (opts.nda && ndaAt < start) rows.push({
-    type: "nda_reminder", booking_id: b.id, lead_id: b.lead_id, to_email: b.email, scheduled_utc: new Date(Math.max(ndaAt, now)).toISOString(),
+  const nda = (at: number) => ({
+    type: "nda_reminder" as const, booking_id: b.id, lead_id: b.lead_id, to_email: b.email, scheduled_utc: new Date(at).toISOString(),
     subject: "Please sign the NDA before your consultation",
     body: `${hi}So you can share details freely on the call, please sign our short mutual NDA before your consultation on ${when(b.start_utc, b.client_tz)}:\n${origin}/nda/${b.manage_token}${SIGN}`,
   });
+  // Call under 3h after booking: only the 1h-before reminder, so two don't land close together.
+  const late = start - Date.parse(b.created_at) < 3 * H;
+  if (opts.nda && !late && ndaAt < start) rows.push(nda(Math.max(ndaAt, now)));
+  if (opts.nda && start - H > now) rows.push(nda(start - H));
   // Booked less than 26h ahead: the confirmation already carries the attendance link.
   if (start - Date.parse(b.created_at) >= 26 * H && start - 24 * H > now) rows.push({
     type: "reminder_24h", booking_id: b.id, lead_id: b.lead_id, to_email: b.email, scheduled_utc: new Date(start - 24 * H).toISOString(),
