@@ -33,5 +33,5 @@ export function useBusy(excludeToken?: string) {
   // 30s ahead of the server (covers the 15s tick) so the browser is never looser than the re-check;
   // rounded to 15s so memoised slot lists don't recompute every render.
   const now = Math.ceil((tick + skew + 30_000) / 15_000) * 15_000;
-  return { busy: q.data?.busy ?? EMPTY, teamTz: q.data?.teamTz, loading: !q.data, ready: !!q.data, now };
+  return { busy: q.data?.busy ?? EMPTY, teamTz: q.data?.teamTz, rules: q.data?.rules, loading: !q.data, ready: !!q.data, now };
 }

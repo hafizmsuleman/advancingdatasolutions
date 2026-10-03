@@ -39,7 +39,7 @@ function SlotPage() {
   const tabsRef = useRef<HTMLDivElement>(null);
   const [day, setDay] = useState<string>("");
   const [selected, setSelected] = useState<number | null>(null);
-  const { busy, teamTz, ready, now: liveNow } = useBusy();
+  const { busy, teamTz, rules, ready, now: liveNow } = useBusy();
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState("");
 
@@ -53,8 +53,8 @@ function SlotPage() {
 
   const duration = draft?.duration ?? 30;
   const slots = useMemo(
-    () => (now && ready ? generateSlots({ now: liveNow, duration, visitorTz: tz, busy, teamTz }) : []),
-    [now, ready, liveNow, duration, tz, busy, teamTz],
+    () => (now && ready ? generateSlots({ now: liveNow, duration, visitorTz: tz, busy, teamTz, rules }) : []),
+    [now, ready, liveNow, duration, tz, busy, teamTz, rules],
   );
   const days = useMemo(() => (now ? visitorDays(now, tz) : []), [now, tz]);
   const byDay = useMemo(() => {
