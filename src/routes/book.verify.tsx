@@ -4,7 +4,7 @@ import { AlertCircle, Mail } from "lucide-react";
 
 import { BookingProgress } from "@/components/booking-progress";
 import { cn } from "@/lib/utils";
-import { loadDraft, saveDraft, type BookingDraft } from "@/lib/booking-draft";
+import { clearDraft, loadDraft, saveDraft, type BookingDraft } from "@/lib/booking-draft";
 import { resendCode, verifyCode } from "@/lib/booking.functions";
 
 const TITLE = "Verify your email — Advancing Data Solutions";
@@ -85,7 +85,7 @@ function VerifyPage() {
     const r = await verifyCode({ data: { bookingId: draft!.bookingId!, code: value } }).catch(() => ({ result: "server" as const }));
     setBusy(false);
     if (r.result === "confirmed" && "token" in r && r.token) {
-      saveDraft({ ...draft, slotStart: undefined, bookingId: undefined });
+      clearDraft();
       navigate({ to: "/booked/$token", params: { token: r.token } });
       return;
     }
