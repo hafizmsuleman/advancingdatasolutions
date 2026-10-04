@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
+import { FileSignature, CalendarCheck, Clock } from "lucide-react";
 import { Panel, Pill, PageIntro, btn, field, th, td } from "@/components/admin-ui";
 import { blockSender, useAdminBookings, useInvalidateAdmin } from "@/lib/admin-data";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,7 +28,7 @@ export const Route = createFileRoute("/admin/bookings")({
 });
 
 const STATUS: Record<BookingStatus, { label: string; tone: "success" | "info" | "warning" | "error" | "neutral" }> = {
-  confirmed: { label: "Confirmed", tone: "info" },
+  confirmed: { label: "Booked", tone: "info" },
   completed: { label: "Completed", tone: "success" },
   no_show: { label: "No-show", tone: "error" },
   cancelled: { label: "Cancelled", tone: "neutral" },
@@ -137,7 +138,7 @@ function Bookings() {
                 <td className={td + " !whitespace-normal tabular-nums"}>{fmtIn(b.start, browserTimeZone())}</td>
                 <td className={td + " !whitespace-normal tabular-nums"}>{fmtIn(b.start, b.clientTz)}<div className="break-words text-xs text-muted-foreground">({tzLabel(b.clientTz)})</div></td>
                 <td className={td + " tabular-nums"}>{b.duration} min</td>
-                <td className={td + " !whitespace-normal"}><Pill tone={STATUS[b.status].tone}>{STATUS[b.status].label}</Pill>{b.calendarFailed && <div className="mt-1"><Pill tone="warning">Calendar not synced</Pill></div>}{b.declined && b.status === "confirmed" && <div className="mt-1"><Pill tone="error">Client declined in calendar</Pill></div>}{b.status === "cancelled" && <div className="mt-1 text-xs text-muted-foreground">{cancellationText(b)}</div>}</td>
+                <td className={td + " !whitespace-normal"}><Pill tone={STATUS[b.status].tone}>{STATUS[b.status].label}</Pill>{b.calendarFailed && <div className="mt-1"><Pill tone="warning">Calendar not synced</Pill></div>}{b.declined && b.status === "confirmed" && <div className="mt-1"><Pill tone="error">Client declined in calendar</Pill></div>}{b.status === "cancelled" && <div className="mt-1 text-xs text-muted-foreground">{cancellationText(b)}</div>}{b.ndaSigned ? <div className="mt-1"><Pill tone="success" icon={FileSignature}>NDA signed</Pill></div> : <div className="mt-1"><Pill tone="neutral" icon={FileSignature}>NDA not signed</Pill></div>}{b.attendance ? <div className="mt-1"><Pill tone="success" icon={CalendarCheck}>Attendance confirmed</Pill></div> : <div className="mt-1"><Pill tone="warning" icon={Clock}>Day-before check: pending</Pill></div>}</td>
                 <td className={td}>
                   <div className="flex flex-wrap justify-end gap-1 max-lg:min-w-[142px]">
                   {b.status === "confirmed" && (
