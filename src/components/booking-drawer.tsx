@@ -1,4 +1,4 @@
-import { FileSignature, BadgeCheck, CalendarCheck, Clock, CalendarX } from "lucide-react";
+import { FileSignature, CalendarCheck, Clock, CalendarX } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Pill } from "@/components/admin-ui";
 import { browserTimeZone, fmtIn, tzLabel, cancellationText, type AdminBooking } from "@/lib/admin-sample";
@@ -6,7 +6,6 @@ import { browserTimeZone, fmtIn, tzLabel, cancellationText, type AdminBooking } 
 export function Badges({ b }: { b: AdminBooking }) {
   return (
     <div className="flex flex-wrap gap-1.5">
-      {b.verified ? <Pill tone="success" icon={BadgeCheck}>Verified</Pill> : <Pill tone="neutral">Unverified</Pill>}
       {b.ndaSigned ? <Pill tone="success" icon={FileSignature}>NDA signed</Pill> : <Pill tone="neutral" icon={FileSignature}>NDA not signed</Pill>}
       {b.attendance ? <Pill tone="success" icon={CalendarCheck}>Attendance confirmed</Pill> : <Pill tone="warning" icon={Clock}>Day-before check: pending</Pill>}
       {b.declined && <Pill tone="error" icon={CalendarX}>Client declined in calendar</Pill>}

@@ -58,6 +58,9 @@ const KEY = "ads-booking-draft";
 export function saveDraft(d: Partial<BookingDraft>) {
   sessionStorage.setItem(KEY, JSON.stringify(d));
 }
+export function clearDraft() {
+  sessionStorage.removeItem(KEY);
+}
 export function loadDraft(): Partial<BookingDraft> | null {
   try {
     const raw = sessionStorage.getItem(KEY);
