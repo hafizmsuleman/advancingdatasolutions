@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
+import { FileSignature, CalendarCheck, Clock } from "lucide-react";
 import { Panel, Pill, PageIntro, btn, field, th, td } from "@/components/admin-ui";
 import { blockSender, useAdminBookings, useInvalidateAdmin } from "@/lib/admin-data";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,7 +28,7 @@ export const Route = createFileRoute("/admin/bookings")({
 });
 
 const STATUS: Record<BookingStatus, { label: string; tone: "success" | "info" | "warning" | "error" | "neutral" }> = {
-  confirmed: { label: "Confirmed", tone: "info" },
+  confirmed: { label: "Booked", tone: "info" },
   completed: { label: "Completed", tone: "success" },
   no_show: { label: "No-show", tone: "error" },
   cancelled: { label: "Cancelled", tone: "neutral" },
