@@ -28,3 +28,4 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'nudge': branded('Nudge', 'Your free consultation', `Hi Megan,\n\nWe noticed you haven't picked a time yet. Your details are saved, so booking takes under a minute:\n${S}/book?t=${T}`),
   'admin-alert': branded('Admin alert', 'Needs your attention', `Megan Holloway from Northwind Logistics hasn't confirmed attendance.`),
 }
+TEMPLATES['no-show-notice'] = branded('No-show follow-up', 'Sorry we missed you', `Hi Megan,\n\nWe were ready for your free consultation on Tuesday 29 September, 4:00 PM (New York time), but we weren't able to connect.\n\nIf you'd still like to talk, you're welcome to choose a new time that suits you.\n\n${S}/book`)
