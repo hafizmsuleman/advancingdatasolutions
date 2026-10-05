@@ -80,7 +80,7 @@ function Bookings() {
 
   const ask = (booking: AdminBooking, kind: Kind) => {
     setReason(kind === "completed" || kind === "no_show" ? booking.outcomeNote ?? "" : "");
-    setNotify(false); setClientMsg("");
+    setNotify(false); setClientMsg(kind === "no_show" ? "We know schedules can change, so no worries if something came up." : "");
     setBlockValue(booking.email.toLowerCase()); setAction({ booking, kind });
   };
   const applyAction = async () => {
@@ -159,8 +159,8 @@ function Bookings() {
                 <td className={td}>
                   <div className="flex flex-wrap justify-end gap-1 max-lg:min-w-[142px]">
                   {["confirmed", "ended", "completed", "no_show"].includes(b.status) && Date.parse(b.start) <= Date.now() && (<>
-                    <button className={btn} onClick={() => ask(b, "completed")}>{b.status === "completed" ? (b.outcomeNote ? "Update note" : "Add note") : "Mark completed"}</button>
-                    <button className={btn} onClick={() => ask(b, "no_show")}>{b.status === "no_show" ? (b.outcomeNote ? "Update note" : "Add note") : "No-show"}</button>
+                    <button className={btn} onClick={() => ask(b, "completed")}>{b.status === "completed" ? (b.outcomeNote ? "Update note" : "Add note") : b.status === "no_show" ? "Change to completed" : "Mark completed"}</button>
+                    <button className={btn} onClick={() => ask(b, "no_show")}>{b.status === "no_show" ? (b.outcomeNote ? "Update note" : "Add note") : b.status === "completed" ? "Change to no-show" : "No-show"}</button>
                   </>)}
                   {b.status === "confirmed" && <button className={btn + " text-destructive"} onClick={() => ask(b, "cancelled")}>Cancel</button>}
                      <button className={btn + " text-destructive"} onClick={() => ask(b, "block")}>Block</button>
