@@ -47,6 +47,14 @@ export function BookingDrawer({ b, onClose }: { b: AdminBooking | null; onClose:
                 ))}
               </dl>
               {b.status === "cancelled" && <p className="text-sm text-muted-foreground">{cancellationText(b)}</p>}
+              {(b.status === "completed" || b.status === "no_show") && (
+                <div>
+                  <h3 className="mb-1 text-xs font-medium text-muted-foreground">Outcome</h3>
+                  <p className="font-medium text-foreground">{b.status === "completed" ? "Completed" : "No-show"}</p>
+                  {b.outcomeNote && <p className="mt-1 whitespace-pre-wrap rounded-lg bg-muted p-3 leading-relaxed text-foreground">{b.outcomeNote}</p>}
+                  <p className="mt-1 text-xs text-muted-foreground">Private note, never shown to the client.</p>
+                </div>
+              )}
               <div>
                 <h3 className="mb-1 text-xs font-medium text-muted-foreground">Notes from the client</h3>
                 <p className="rounded-lg bg-muted p-3 leading-relaxed text-foreground">{b.notes}</p>

@@ -1,0 +1,1 @@
+ALTER TABLE public.bookings ADD COLUMN outcome_note text;

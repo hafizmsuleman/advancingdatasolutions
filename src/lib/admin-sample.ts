@@ -39,6 +39,7 @@ export type AdminBooking = {
   declined?: boolean;
   cancelledAt?: string | null;
   cancelReason?: string | null;
+  outcomeNote?: string | null;
 };
 
 export const SAMPLE_BOOKINGS: AdminBooking[] = [

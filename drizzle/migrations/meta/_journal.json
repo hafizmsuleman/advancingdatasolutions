@@ -64,6 +64,13 @@
       "when": 1790534885744,
       "tag": "0008_no_auto_release_demo_samples",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791181614865,
+      "tag": "0009_add_booking_outcome_note",
+      "breakpoints": true
     }
   ]
 }
