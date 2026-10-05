@@ -35,6 +35,8 @@ const STATUS: Record<BookingStatus, { label: string; tone: "success" | "info" | 
   released: { label: "Released", tone: "warning" },
 };
 
+type Kind = "cancelled" | "completed" | "no_show" | "block";
+
 function Bookings() {
   const { data: rows = [] } = useAdminBookings();
   const invalidate = useInvalidateAdmin();
