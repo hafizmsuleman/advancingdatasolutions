@@ -102,6 +102,7 @@ export type Database = {
           length_min: number
           manage_token: string
           meet_link: string | null
+          outcome_note: string | null
           released_at: string | null
           rescheduled_from_id: string | null
           session_type: Database["public"]["Enums"]["session_type"]
@@ -129,6 +130,7 @@ export type Database = {
           length_min: number
           manage_token?: string
           meet_link?: string | null
+          outcome_note?: string | null
           released_at?: string | null
           rescheduled_from_id?: string | null
           session_type: Database["public"]["Enums"]["session_type"]
@@ -156,6 +158,7 @@ export type Database = {
           length_min?: number
           manage_token?: string
           meet_link?: string | null
+          outcome_note?: string | null
           released_at?: string | null
           rescheduled_from_id?: string | null
           session_type?: Database["public"]["Enums"]["session_type"]
