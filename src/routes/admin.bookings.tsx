@@ -7,7 +7,7 @@ import { blockSender, useAdminBookings, useInvalidateAdmin } from "@/lib/admin-d
 import { supabase } from "@/integrations/supabase/client";
 import { browserTimeZone, fmtIn, dayKeyIn, tzLabel, type AdminBooking, type BookingStatus } from "@/lib/admin-sample";
 import { BookingDrawer } from "@/components/booking-drawer";
-import { cancelAdminBooking } from "@/lib/admin-booking.functions";
+import { cancelAdminBooking, markNoShow } from "@/lib/admin-booking.functions";
 import { cancellationText } from "@/lib/admin-sample";
 import { useServerFn } from "@tanstack/react-start";
 import { ActionDialog } from "@/components/action-dialog";
@@ -24,11 +24,13 @@ export const Route = createFileRoute("/admin/bookings")({
       { name: "robots", content: "noindex" },
     ],
   }),
+  validateSearch: (s: Record<string, unknown>): { status?: string } => (typeof s.status === "string" ? { status: s.status } : {}),
   component: Bookings,
 });
 
 const STATUS: Record<BookingStatus, { label: string; tone: "success" | "info" | "warning" | "error" | "neutral" }> = {
   confirmed: { label: "Booked", tone: "info" },
+  ended: { label: "Ended: outcome not recorded", tone: "neutral" },
   completed: { label: "Completed", tone: "success" },
   no_show: { label: "No-show", tone: "error" },
   cancelled: { label: "Cancelled", tone: "neutral" },
@@ -41,7 +43,11 @@ function Bookings() {
   const { data: rows = [] } = useAdminBookings();
   const invalidate = useInvalidateAdmin();
   const cancelFn = useServerFn(cancelAdminBooking);
-  const [status, setStatus] = useState("all");
+  const initial = Route.useSearch().status;
+  const [status, setStatus] = useState(initial ?? "all");
+  const noShowFn = useServerFn(markNoShow);
+  const [notify, setNotify] = useState(false);
+  const [clientMsg, setClientMsg] = useState("");
   const [area, setArea] = useState("all");
   const [date, setDate] = useState("");
   const [open, setOpen] = useState<AdminBooking | null>(null);
@@ -65,7 +71,7 @@ function Bookings() {
   const setOutcome = async (b: AdminBooking, to: "completed" | "no_show", raw: string) => {
     const note = raw.replace(/(?:https?:\/\/|www\.)\S+/gi, "").replace(/[\r\n]+/g, " ").trim().slice(0, 500);
     const { error } = await supabase.from("bookings").update({ status: to, outcome_note: note || null })
-      .eq("id", b.id).in("status", ["confirmed", "attendance_confirmed", "completed", "no_show"]);
+      .eq("id", b.id).in("status", ["confirmed", "attendance_confirmed", "ended", "completed", "no_show"]);
     if (error) { toast.error("Couldn't update the booking"); return false; }
     toast.success(`${b.company} marked ${to === "no_show" ? "no-show" : "completed"}`);
     invalidate();
@@ -74,6 +80,7 @@ function Bookings() {
 
   const ask = (booking: AdminBooking, kind: Kind) => {
     setReason(kind === "completed" || kind === "no_show" ? booking.outcomeNote ?? "" : "");
+    setNotify(false); setClientMsg("");
     setBlockValue(booking.email.toLowerCase()); setAction({ booking, kind });
   };
   const applyAction = async () => {
@@ -86,6 +93,14 @@ function Bookings() {
       if (!ok) toast.error("Couldn't block this address"); else toast.success("Blocked");
     } else if (kind === "cancelled") {
       ok = await cancel(booking.id, reason);
+    } else if (kind === "no_show" && notify) {
+      try {
+        const r = await noShowFn({ data: { id: booking.id, note: reason, notify: true, message: clientMsg } });
+        invalidate(); ok = true;
+        if (r.alreadySent) toast.success(`${booking.company} marked no-show. The email was already sent earlier, so it wasn't sent again`);
+        else if (r.failed) toast.error(`${booking.company} marked no-show, but the email failed. See Outbox`);
+        else toast.success(`${booking.company} marked no-show and emailed`);
+      } catch { toast.error("Couldn't update the booking"); ok = false; }
     } else {
       ok = await setOutcome(booking, kind, reason);
     }
@@ -140,12 +155,12 @@ function Bookings() {
                 <td className={td + " !whitespace-normal tabular-nums"}>{fmtIn(b.start, browserTimeZone())}</td>
                 <td className={td + " !whitespace-normal tabular-nums"}>{fmtIn(b.start, b.clientTz)}<div className="break-words text-xs text-muted-foreground">({tzLabel(b.clientTz)})</div></td>
                 <td className={td + " tabular-nums"}>{b.duration} min</td>
-                <td className={td + " !whitespace-normal"}><Pill tone={STATUS[b.status].tone}>{STATUS[b.status].label}</Pill>{(b.status === "completed" || b.status === "no_show") && b.outcomeNote && <div className="mt-1 truncate text-xs text-muted-foreground" title={b.outcomeNote}>{b.outcomeNote}</div>}{b.calendarFailed && <div className="mt-1"><Pill tone="warning">Calendar not synced</Pill></div>}{b.declined && b.status === "confirmed" && <div className="mt-1"><Pill tone="error">Client declined in calendar</Pill></div>}{b.status === "cancelled" && <div className="mt-1 text-xs text-muted-foreground">{cancellationText(b)}</div>}{b.status !== "cancelled" && (b.ndaSigned ? <div className="mt-1"><Pill tone="success" icon={FileSignature}>NDA signed</Pill></div> : <div className="mt-1"><Pill tone="neutral" icon={FileSignature}>NDA not signed</Pill></div>)}{b.status === "confirmed" && (b.attendance ? <div className="mt-1"><Pill tone="success" icon={CalendarCheck}>Attendance confirmed</Pill></div> : <div className="mt-1"><Pill tone="warning" icon={Clock}>Attendance not confirmed</Pill></div>)}</td>
+                <td className={td + " !whitespace-normal"}><Pill tone={STATUS[b.status].tone}>{STATUS[b.status].label}</Pill>{(b.status === "completed" || b.status === "no_show") && b.outcomeNote && <div className="mt-1 truncate text-xs text-muted-foreground" title={b.outcomeNote}>{b.outcomeNote}</div>}{b.calendarFailed && <div className="mt-1"><Pill tone="warning">Calendar not synced</Pill></div>}{b.declined && b.status === "confirmed" && <div className="mt-1"><Pill tone="error">Client declined in calendar</Pill></div>}{b.status === "cancelled" && <div className="mt-1 text-xs text-muted-foreground">{cancellationText(b)}</div>}{b.status !== "cancelled" && (b.ndaSigned ? <div className="mt-1"><Pill tone="success" icon={FileSignature}>NDA signed</Pill></div> : <div className="mt-1"><Pill tone="neutral" icon={FileSignature}>NDA not signed</Pill></div>)}{(b.status === "confirmed" || b.status === "ended") && (b.attendance ? <div className="mt-1"><Pill tone="success" icon={CalendarCheck}>Attendance confirmed</Pill></div> : <div className="mt-1"><Pill tone="warning" icon={Clock}>Attendance not confirmed</Pill></div>)}</td>
                 <td className={td}>
                   <div className="flex flex-wrap justify-end gap-1 max-lg:min-w-[142px]">
-                  {["confirmed", "completed", "no_show"].includes(b.status) && Date.parse(b.start) <= Date.now() && (<>
-                    <button className={btn} onClick={() => ask(b, "completed")}>{b.status === "completed" ? "Update note" : "Mark completed"}</button>
-                    <button className={btn} onClick={() => ask(b, "no_show")}>{b.status === "no_show" ? "Update note" : "No-show"}</button>
+                  {["confirmed", "ended", "completed", "no_show"].includes(b.status) && Date.parse(b.start) <= Date.now() && (<>
+                    <button className={btn} onClick={() => ask(b, "completed")}>{b.status === "completed" ? (b.outcomeNote ? "Update note" : "Add note") : "Mark completed"}</button>
+                    <button className={btn} onClick={() => ask(b, "no_show")}>{b.status === "no_show" ? (b.outcomeNote ? "Update note" : "Add note") : "No-show"}</button>
                   </>)}
                   {b.status === "confirmed" && <button className={btn + " text-destructive"} onClick={() => ask(b, "cancelled")}>Cancel</button>}
                      <button className={btn + " text-destructive"} onClick={() => ask(b, "block")}>Block</button>
@@ -160,7 +175,19 @@ function Bookings() {
         title={k === "cancelled" ? `Cancel ${action?.booking.company}'s consultation?` : k === "block" ? "Block this email, or edit it to a domain (e.g. example.com):" : same ? `Update the note for ${action?.booking.company}` : k === "no_show" ? `Mark ${action?.booking.company} as no-show?` : `Mark ${action?.booking.company ?? "booking"} as completed?`}
         confirmLabel={k === "cancelled" ? "Cancel booking" : k === "block" ? "Block" : same ? "Save note" : k === "no_show" ? "No-show" : "Mark completed"}
         destructive={k === "cancelled" || k === "block"} busy={busy} onConfirm={applyAction}
-        input={k === "cancelled" ? { label: "Reason (optional)", value: reason, onChange: setReason, note: "This will be included in the email to the client", maxLength: 500, multiline: true } : k === "block" ? { label: "Email or domain", value: blockValue, onChange: setBlockValue, maxLength: 254 } : { label: "Private note (optional)", value: reason, onChange: setReason, note: "Only visible to our team. No email is sent and the calendar is unchanged.", maxLength: 500, multiline: true }} />
+        input={k === "cancelled" ? { label: "Reason (optional)", value: reason, onChange: setReason, note: "This will be included in the email to the client", maxLength: 500, multiline: true } : k === "block" ? { label: "Email or domain", value: blockValue, onChange: setBlockValue, maxLength: 254 } : { label: "Private note (optional)", value: reason, onChange: setReason, note: "Only visible to our team. No email is sent and the calendar is unchanged.", maxLength: 500, multiline: true }}>
+        {k === "no_show" && (
+          <div className="space-y-2">
+            <label htmlFor="no-show-message" className="text-sm font-medium">Message to client (optional)</label>
+            <textarea id="no-show-message" rows={3} maxLength={500} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={clientMsg} onChange={(e) => setClientMsg(e.target.value)} />
+            <label className="flex min-h-11 items-center gap-2 text-sm">
+              <input type="checkbox" className="h-4 w-4 accent-primary" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
+              Send an email to the client
+            </label>
+            <p className="text-xs text-muted-foreground">The private note is never included. The email is sent at most once per booking.</p>
+          </div>
+        )}
+      </ActionDialog>
       <BookingDrawer b={open} onClose={() => setOpen(null)} />
     </div>
   );
