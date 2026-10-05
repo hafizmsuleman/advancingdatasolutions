@@ -592,6 +592,7 @@ export type Database = {
         | "cancelled"
         | "completed"
         | "no_show"
+        | "ended"
       budget_range: "under_5k" | "5k_20k" | "20k_50k" | "over_50k" | "not_sure"
       calendar_sync: "pending" | "synced" | "failed"
       lead_source: "form" | "email" | "linkedin" | "whatsapp" | "pasted"
@@ -609,6 +610,7 @@ export type Database = {
         | "cancel_notice"
         | "nudge"
         | "admin_alert"
+        | "no_show_notice"
       need_type:
         | "data_platform"
         | "pipelines"
@@ -771,6 +773,7 @@ export const Constants = {
         "cancelled",
         "completed",
         "no_show",
+        "ended",
       ],
       budget_range: ["under_5k", "5k_20k", "20k_50k", "over_50k", "not_sure"],
       calendar_sync: ["pending", "synced", "failed"],
@@ -789,6 +792,7 @@ export const Constants = {
         "cancel_notice",
         "nudge",
         "admin_alert",
+        "no_show_notice",
       ],
       need_type: [
         "data_platform",

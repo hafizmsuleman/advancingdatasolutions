@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { CalendarDays, FileSignature, Mail, CalendarCheck, Inbox } from "lucide-react";
@@ -25,6 +26,7 @@ function Dashboard() {
   const [open, setOpen] = useState<AdminBooking | null>(null);
   const { data: all = [] } = useAdminBookings();
    const { data: STATS = { bookingsThisWeek: 0, ndasSigned: 0, emailsAutomated: 0, upcomingTotal: 0, attendanceConfirmed: 0 } } = useAdminStats();
+  const waiting = all.filter((b) => b.status === "ended").length;
   const fresh = all.filter((b) => b.isNew && b.status === "confirmed");
   const stats = [
     { label: "Bookings this week", value: STATS.bookingsThisWeek, icon: CalendarDays },
@@ -46,6 +48,11 @@ function Dashboard() {
         ))}
       </div>
 
+      {waiting > 0 && (
+        <p className="-mt-3 mb-6 text-sm text-muted-foreground">
+          <Link to="/admin/bookings" search={{ status: "ended" }} className="font-medium text-primary hover:underline">{waiting} waiting for an outcome</Link>
+        </p>
+      )}
       <PageIntro title="New bookings">Booked since you last checked.</PageIntro>
       {fresh.length === 0 ? (
         <Panel className="flex flex-col items-center p-10 text-center">

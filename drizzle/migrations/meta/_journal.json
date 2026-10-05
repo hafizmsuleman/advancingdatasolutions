@@ -71,6 +71,13 @@
       "when": 1791181614865,
       "tag": "0009_add_booking_outcome_note",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791186676031,
+      "tag": "0010_ended_status_no_show_notice",
+      "breakpoints": true
     }
   ]
 }

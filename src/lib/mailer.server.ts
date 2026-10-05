@@ -13,7 +13,7 @@ const TEMPLATE: Record<MsgType, string> = {
   verification_code: "verification-code", confirmation: "confirmation", admin_new_booking: "admin-new-booking",
   nda_reminder: "nda-reminder", reminder_24h: "reminder-24h", reminder_1h: "reminder-1h",
   release_notice: "release-notice", reschedule_notice: "reschedule-notice", cancel_notice: "cancel-notice",
-  nudge: "nudge", admin_alert: "admin-alert",
+  nudge: "nudge", admin_alert: "admin-alert", no_show_notice: "no-show-notice",
 };
 
 /** Send one due Outbox row. Demo rows are never delivered: they are marked sent (demo) without touching the email service. */
