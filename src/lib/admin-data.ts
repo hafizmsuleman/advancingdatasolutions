@@ -79,7 +79,7 @@ export function useAdminBookings() {
           calendarFailed: !b.is_demo && b.calendar_sync_status === "failed" && ["confirmed", "attendance_confirmed"].includes(b.status),
           status, isNew: status === "confirmed" && Date.now() - Date.parse(b.created_at) < 36 * 3600_000,
           declined: (b.messages ?? []).some((m) => m.type === "admin_alert" && m.subject.startsWith("Client declined in calendar")),
-          cancelledAt: b.cancelled_at, cancelReason: b.cancel_reason, isDemo: b.is_demo,
+          cancelledAt: b.cancelled_at, cancelReason: b.cancel_reason, outcomeNote: b.outcome_note, isDemo: b.is_demo,
         };
       });
     },
