@@ -1,5 +1,6 @@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import type { ReactNode } from "react";
 
 type Props = {
   open: boolean;
@@ -10,9 +11,10 @@ type Props = {
   busy?: boolean;
   destructive?: boolean;
   input?: { label: string; value: string; onChange: (value: string) => void; note?: string; maxLength?: number; multiline?: boolean } | undefined;
+  children?: ReactNode;
 };
 
-export function ActionDialog({ open, onOpenChange, title, confirmLabel, onConfirm, busy, destructive, input }: Props) {
+export function ActionDialog({ open, onOpenChange, title, confirmLabel, onConfirm, busy, destructive, input, children }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100%-2rem)] rounded-xl border-border bg-card text-foreground shadow-lg sm:max-w-md">
@@ -28,6 +30,7 @@ export function ActionDialog({ open, onOpenChange, title, confirmLabel, onConfir
             {input.note && <DialogDescription>{input.note}</DialogDescription>}
           </div>
         )}
+        {children}
         <DialogFooter className="gap-2 sm:space-x-0">
           <Button variant="outline" type="button" disabled={busy} onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button variant={destructive ? "destructive" : "default"} type="button" disabled={busy} onClick={() => void onConfirm()}>{confirmLabel}</Button>
