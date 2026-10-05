@@ -142,7 +142,7 @@ export async function runAutomations(origin: string) {
       const start = Date.parse(b.start_utc);
       const lead = b.leads as { full_name: string | null; company: string | null } | null;
       if (Date.parse(b.end_utc) < t) {
-        await d.from("bookings").update({ status: "completed" }).eq("id", b.id).in("status", ["confirmed", "attendance_confirmed"]);
+        await d.from("bookings").update({ status: "ended" }).eq("id", b.id).in("status", ["confirmed", "attendance_confirmed"]);
         c.completed++; continue;
       }
       // Demo bookings: reminders follow the virtual clock (real ones are queued ahead at confirm).
@@ -235,7 +235,7 @@ export async function runAutomations(origin: string) {
       const want = age >= 48 * H ? 2 : 1;
       if (!eligible || l.nudge_count >= Math.min(want, 2) || bl.has(email) || bl.has(email.split("@")[1] ?? "")) continue;
       const { data: act } = await d.from("bookings").select("id").ilike("email", email)
-        .in("status", ["confirmed", "attendance_confirmed", "completed"]).limit(1);
+        .in("status", ["confirmed", "attendance_confirmed", "completed", "ended"]).limit(1);
       if (act?.length) continue;
       const { data: upd } = await d.from("leads").update({ nudge_count: l.nudge_count + 1, last_nudged_at: nowIso })
         .eq("id", l.id).eq("nudge_count", l.nudge_count).select("id");

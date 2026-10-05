@@ -94,7 +94,7 @@ export function useAdminStats() {
     queryFn: async () => {
       const week = new Date(Date.now() - 7 * 86400_000).toISOString();
       let b = supabase.from("bookings").select("id", { count: "exact", head: true })
-        .in("status", ["confirmed", "attendance_confirmed", "completed"]).gte("created_at", week);
+        .in("status", ["confirmed", "attendance_confirmed", "completed", "ended"]).gte("created_at", week);
       // Queued emails count once due; real sending will flip them to "sent".
        let m = supabase.from("messages").select("id").in("status", ["sent", "scheduled"])
         .gte("scheduled_utc", week).lte("scheduled_utc", new Date().toISOString());

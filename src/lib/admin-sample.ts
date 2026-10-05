@@ -9,7 +9,7 @@ export function browserTimeZone() {
 }
 
 export type Area = "Data" | "AI" | "Web";
-export type BookingStatus = "confirmed" | "completed" | "no_show" | "cancelled" | "released";
+export type BookingStatus = "confirmed" | "ended" | "completed" | "no_show" | "cancelled" | "released";
 
 export type AdminBooking = {
   id: string;
